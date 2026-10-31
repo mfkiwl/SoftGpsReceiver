@@ -40,8 +40,7 @@ void MeasurementsPage::refresh()
         return;
     }
     const int n = int(rx_->pvt.sols.size());
-    ui->epochSlider->setRange(0, n - 1);
-    ui->epochSpin->setRange(0, n - 1);
+    setEpochRange(ui->epochSpin, ui->epochSlider, n);
     fillPlots();
     showEpoch();
 }

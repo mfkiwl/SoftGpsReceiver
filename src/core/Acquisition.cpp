@@ -167,6 +167,7 @@ void acquireE1(const SignalSource& src, const ReceiverSettings& s, AcquisitionOu
     int cnt = 0;
     for (const AcqResult& r : out.results)
         if (r.acquired) { sum += r.doppler; ++cnt; }
+    if (cnt == 0 && s.acqHasDopplerHint) { sum = s.acqDopplerHint; cnt = 1; }
     if (cnt > 0) {
         centre += sum / cnt;
         span = std::min(span, 5000.0);
@@ -191,7 +192,10 @@ void acquireE1(const SignalSource& src, const ReceiverSettings& s, AcquisitionOu
         blocks[k] = std::move(x);
     });
 
-    const int P = kGalileoMaxSv;
+    std::vector<int> svids(s.acqGalSvids.begin(), s.acqGalSvids.end());
+    if (svids.empty())
+        for (int v = 1; v <= kGalileoMaxSv; ++v) svids.push_back(v);
+    const int P = int(svids.size());
     std::vector<AcqResult> results(P);
     std::vector<int> pIdx(P);
     std::iota(pIdx.begin(), pIdx.end(), 0);
@@ -201,7 +205,7 @@ void acquireE1(const SignalSource& src, const ReceiverSettings& s, AcquisitionOu
     QtConcurrent::blockingMap(pIdx, [&](const int& p) {
         if (cancel && cancel->load()) return;
         AcqResult& r = results[p];
-        const int svid = p + 1;
+        const int svid = svids[size_t(p)];
         r.prn = kGalileoIdBase + svid;
 
         Fft fftL(L), fftM(M);

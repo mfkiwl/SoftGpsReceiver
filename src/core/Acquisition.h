@@ -20,6 +20,7 @@ struct AcqResult
     double noiseMean = 0;
     double cn0 = 0;             // dB-Hz estimate from the correlation peak
     int codePhase = 0;          // sample (within the code period) at which the code starts
+    qint64 startSample = 0;     // live mode: first sample of the data searched, to which codePhase refers
     double codePhaseChips = 0;
     double coarseFreq = 0;      // Hz (IF + Doppler bin)
     double fineFreq = 0;        // Hz after fine estimation

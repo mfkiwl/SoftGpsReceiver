@@ -1,0 +1,19 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<title>Choosing the hardware</title><link rel="stylesheet" href="help.css"></head><body>
+<h1>Choosing the hardware</h1>
+<h2>Antenna</h2>
+<p>Use an <b>active</b> L1/E1 GNSS antenna: it has a built-in low-noise amplifier (LNA), usually 26 to 30 dB, which must be powered with DC through the coax. Most take 3 to 5 V at 10 to 30 mA; check its data sheet. A passive antenna will generally not work well with a wideband SDR.</p>
+<p>Mount it with a clear view of the sky, ideally outdoors on a ground plane. Indoors, or beside a window, expect few satellites and poor positions.</p>
+<h2>Bias tee</h2>
+<p>A bias tee adds DC to the coax for the antenna while keeping it out of the SDR. It has three ports:</p>
+<table><tr><th>Port</th><th>Connect to</th></tr>
+<tr><td>RF+DC</td><td>Antenna</td></tr><tr><td>RF</td><td>SDR input</td></tr><tr><td>DC</td><td>Supply at the antenna's voltage</td></tr></table>
+<p>Choose one rated past 1.6 GHz that can pass the antenna current. Port names vary, so check the data sheet. Examples are the Mini-Circuits ZFBT series. You do not need one if the SDR can power the antenna itself; do not use both sources together.</p>
+<div class="warn"><b>Protect the radio.</b> Confirm with a meter that no DC appears at the port going to the SDR before connecting it, unless the SDR's data sheet says its input tolerates DC. Connect and disconnect with the supply off. Do not short the centre conductor of a powered cable.</div>
+<h2>Cables and extra gain</h2>
+<p>Coax loses signal at 1.6 GHz, so keep it short and use low-loss cable for long runs. Check connector types on each item (antennas are often SMA or TNC; the N200 uses SMA). If the signal is too weak after a long cable, add an in-line amplifier near the antenna, not near the SDR. A GNSS band-pass filter helps near strong transmitters such as mobile phone base stations.</p>
+<h2>Clock</h2>
+<p>The radio's internal oscillator is enough to get a position. An external 10 MHz reference or GPSDO gives a steadier clock and less frequency offset. It is an improvement, not a requirement.</p>
+</body></html>

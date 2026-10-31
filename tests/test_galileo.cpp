@@ -1,9 +1,16 @@
 // Checks the I/NAV decoder against the worked example in Annex D.2 of the Galileo OS SIS ICD Issue 2.1,
 // and the first chips of the code tables.
 
+#include "core/Constants.h"
 #include "core/GalileoCodes.h"
 #include "core/GalileoNav.h"
+#include "core/Tracking.h"
 
+#include <QDir>
+#include <QFile>
+#include <QTemporaryDir>
+
+#include <cmath>
 #include <cstdio>
 #include <string>
 #include <vector>
@@ -18,6 +25,44 @@ void check(bool ok, const char* what)
 {
     std::printf("%s  %s\n", ok ? "pass" : "FAIL", what);
     failures += ok ? 0 : 1;
+}
+
+// Tracks a clean E1-C signal delayed by 'delay' chips from a replica that starts at zero delay. Returns the code loop's
+// final error in chips.
+double trackFrom(double delay, int* jumps)
+{
+    const double fs = 16.3676e6, fif = 4.1304e6;
+    const auto table = GalileoCode::boc11(GalileoCode::e1c(1));
+    QTemporaryDir dir;
+    const QString path = QDir(dir.path()).filePath(QStringLiteral("e1.bin"));
+    QByteArray data(int(fs), Qt::Uninitialized);
+    for (int k = 0; k < data.size(); ++k) {
+        const double t = k / fs;
+        const int half = int(std::floor((t * kCaChipRate - delay) * 2.0 + 8184.0)) % 8184;
+        data[k] = char(std::lround(60.0 * table[size_t(half)] * std::cos(kTwoPi * fif * t)));
+    }
+    QFile out(path);
+    if (!out.open(QIODevice::WriteOnly)) return 1e9;
+    out.write(data);
+    out.close();
+
+    ReceiverSettings s;
+    s.samplingFreq = fs;
+    s.ifFreq = fif;
+    s.format = SampleFormat::Int8Real;
+    SignalSource src;
+    src.open(path, s.format, 0, nullptr);
+    AcqResult acq;
+    acq.prn = kGalileoIdBase + 1;
+    acq.fineFreq = fif;
+    TrackingChannel ch;
+    Tracking::trackChannel(src, s, acq, 0, ch, nullptr, nullptr);
+    src.close();
+    *jumps = ch.sidePeakJumps;
+    const double spc = fs / kCaChipRate;
+    double chips = (ch.codeEpochSample.back() / spc - delay) / kE1CodeLength;
+    chips -= std::round(chips);
+    return chips * kE1CodeLength;
 }
 
 std::vector<int> bitsOf(const std::string& text)
@@ -77,6 +122,15 @@ int main()
     same = true;
     for (int i = 0; i < 16; ++i) same = same && (e1b[size_t(i)] < 0) == (expect[i] != 0);
     check(same, "E1-B SVID 1 starts with F5D7, first chip in the top bit");
+
+    // The code loop settles 0.5 + d/2 chips from the true peak when it sits on a side peak
+    int jumps = 0;
+    double error = trackFrom(0.0, &jumps);
+    check(jumps == 0 && std::fabs(error) < 0.02, "E1 tracker stays on the true BOC peak");
+    error = trackFrom(0.575, &jumps);
+    check(jumps == 1 && std::fabs(error) < 0.02, "E1 tracker leaves the side peak after the true one");
+    error = trackFrom(-0.575, &jumps);
+    check(jumps == 1 && std::fabs(error) < 0.02, "E1 tracker leaves the side peak before the true one");
 
     std::printf("%d failure(s)\n", failures);
     return failures ? 1 : 0;

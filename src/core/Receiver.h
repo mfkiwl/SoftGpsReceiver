@@ -15,6 +15,8 @@
 
 namespace gnss {
 
+struct LiveSnapshot;
+
 // Owns the signal source and all processing results, and runs the pipeline
 // stages. Stages are intended to run on a worker thread; signals are emitted
 // from that thread (connections to GUI objects become queued automatically).
@@ -29,6 +31,7 @@ public:
 
     ReceiverSettings settings;
     SignalSource source;
+    QString liveDescription;       // what is streaming, while results come from a radio
 
     AcquisitionOutput acq;
     std::vector<TrackingChannel> trk;
@@ -44,7 +47,10 @@ public:
 
     bool openFile(const QString& path, QString* error);   // also applies the file-name settings
     bool reopen(QString* error);                          // after a format/skip change
+    void closeFile();                                     // lets go of the samples and all results
     void resetResults();
+    // Replaces the results with what the live engine has so far (GUI thread)
+    void applyLiveSnapshot(LiveSnapshot&& snap);
 
     bool runAcquisition();
     bool runTracking();

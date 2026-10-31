@@ -27,7 +27,7 @@ bool locate(const TrackingChannel& t, double R, int* m, double* frac)
 // Builds the measurements of one epoch (everything that does not depend on
 // the receiver position).
 void buildObservations(NavSolution& sol, const std::vector<int>& usable, const std::vector<TrackingChannel>& trk,
-                       const std::vector<NavChannel>& nav, const ReceiverSettings& s)
+                       const std::vector<NavChannel>& nav, const ReceiverSettings& s, double minPli = -2.0)
 {
     sol.obs.clear();
     for (int i : usable) {
@@ -63,7 +63,17 @@ void buildObservations(NavSolution& sol, const std::vector<int>& usable, const s
         o.rawPr = c * (sol.rxTime - o.txTime);
         o.prClockCorrected = o.rawPr + c * o.satClock;
 
+        // The C/N0 estimate stays well up on pure noise for several seconds. Phase lock does not: with the
+        // signal gone, this mean is close to zero. See kLivePhaseLock.
+        double recentPli = 1.0;
+        if (minPli > -1.0) {
+            const int span = std::min(m + 1, 500 / t.periodMs);
+            recentPli = 0;
+            for (int k = m - span + 1; k <= m; ++k) recentPli += t.pli[size_t(k)];
+            recentPli /= span;
+        }
         if (o.cn0 < s.minCn0) o.status = QStringLiteral("C/N0 %1 dB-Hz below threshold").arg(o.cn0, 0, 'f', 1);
+        else if (recentPli < minPli) o.status = QStringLiteral("Not phase locked");
         else if (!n.verifiedAt(m + fr)) o.status = QStringLiteral("Tracking not verified: no decoded data passed its check near this epoch");
         else if (o.health != 0) o.status = QStringLiteral("SV unhealthy (health %1)").arg(o.health);
         else { o.available = true; o.status = QStringLiteral("OK"); }
@@ -278,7 +288,153 @@ double velocityFix(NavSolution& sol, double sign, bool store)
     return rms;
 }
 
+// Mean position, scatter and clock statistics over out.sols
+void statistics(PvtOutput& out, const ReceiverSettings& s, double sign)
+{
+    std::vector<const NavSolution*> valid;
+    for (const auto& sol : out.sols)
+        if (sol.valid) valid.push_back(&sol);
+    out.nValid = int(valid.size());
+    if (valid.empty()) {
+        out.error = QStringLiteral("No valid position fixes");
+        return;
+    }
+    Vec3 mean;
+    for (const auto* v : valid) mean += v->pos;
+    mean = mean / double(valid.size());
+    out.meanPos = mean;
+    out.meanLlh = geo::ecefToGeodetic(mean);
+    out.utm = geo::toUtm(out.meanLlh.lat, out.meanLlh.lon);
+    double se = 0, sn = 0, su = 0, sp = 0, sh = 0, ns = 0, md = 0;
+    int nd = 0;
+    std::vector<double> horiz, sph;
+    out.meanIsb = 0;
+    for (auto& sol : out.sols) {
+        if (!sol.valid) continue;
+        sol.enu = geo::ecefToEnu(sol.pos - mean, out.meanLlh.lat, out.meanLlh.lon);
+        se += sol.enu.x * sol.enu.x; sn += sol.enu.y * sol.enu.y; su += sol.enu.z * sol.enu.z;
+        horiz.push_back(std::hypot(sol.enu.x, sol.enu.y));
+        sph.push_back(sol.enu.norm());
+        sp += sol.pdop; sh += sol.hdop; ns += sol.nUsed;
+        out.meanIsb += sol.isb;
+        if (sol.velValid) { md += sol.drift; ++nd; }
+    }
+    const double N = double(valid.size());
+    out.meanIsb /= N;
+    out.stdE = std::sqrt(se / N); out.stdN = std::sqrt(sn / N); out.stdU = std::sqrt(su / N);
+    out.drms2 = 2.0 * std::sqrt((se + sn) / N);
+    std::sort(horiz.begin(), horiz.end());
+    std::sort(sph.begin(), sph.end());
+    out.cep50 = horiz[horiz.size() / 2];
+    out.sep50 = sph[sph.size() / 2];
+    out.meanPdop = sp / N; out.meanHdop = sh / N; out.meanSats = ns / N;
+    out.meanDrift = nd ? md / nd : 0;
+    out.commonFreqOffset = -out.meanDrift * sign / kL1Wavelength;
+    out.effectiveIf = s.ifFreq + out.commonFreqOffset;
+    // clock bias slope
+    out.biasDrift = 0;
+    if (valid.size() >= 2) {
+        double st = 0, sb = 0, stt = 0, stb = 0;
+        for (const auto* v : valid) {
+            const double t = v->rxTime - valid.front()->rxTime;
+            st += t; sb += v->bias; stt += t * t; stb += t * v->bias;
+        }
+        const double den = N * stt - st * st;
+        if (den != 0) out.biasDrift = (N * stb - st * sb) / den;
+    }
+    out.firstGpsTime = valid.front()->gpsTime;
+}
+
 } // namespace
+
+void LiveSolver::update(const std::vector<TrackingChannel>& trk, const std::vector<NavChannel>& nav,
+                        const GlobalNavData& gnav, const ReceiverSettings& s, int maxFixes, PvtOutput& out)
+{
+    const double fs = s.samplingFreq;
+    out.error.clear();
+    out.log.clear();
+    out.usableChannels.clear();
+    out.nGps = out.nGalileo = 0;
+    for (size_t i = 0; i < trk.size() && i < nav.size(); ++i) {
+        const NavChannel& n = nav[i];
+        if (!trk[i].valid || !n.timingValid || !n.eph.complete() || trk[i].codeEpochSample.size() < 2) continue;
+        out.usableChannels.push_back(int(i));
+        (isGalileo(n.prn) ? out.nGalileo : out.nGps)++;
+        if (out.weekNumber < 0) out.weekNumber = n.eph.weekNumber % 1024;
+    }
+    if (out.usableChannels.size() < 4) {
+        out.error = QStringLiteral("Need at least 4 satellites with ephemeris and timing (have %1)").arg(out.usableChannels.size());
+        return;
+    }
+
+    // ---- epochs: as far as every usable channel has data. At the very first fix also go back over the
+    // history that is already tracked, skipping each channel's pull-in.
+    double R1 = std::numeric_limits<double>::infinity();
+    double R0 = -std::numeric_limits<double>::infinity();
+    for (int i : out.usableChannels) {
+        const auto& e = trk[size_t(i)].codeEpochSample;
+        const int k = std::clamp(s.bitSyncStartMs / trk[size_t(i)].periodMs, 0, int(e.size()) - 2);
+        R0 = std::max(R0, e[size_t(k)]);
+        R1 = std::min(R1, e[e.size() - 2]);
+    }
+    if (!haveEpoch_) {
+        nextR_ = std::ceil(R0);
+        haveEpoch_ = true;
+    }
+    const double step = std::max(1, s.navSolPeriodMs) * fs / 1000.0;
+    signKnown_ = signKnown_ || s.dopplerSign != DopplerSign::Auto;
+    if (s.dopplerSign != DopplerSign::Auto) sign_ = s.dopplerSignValue();
+    out.signAuto = s.dopplerSign == DopplerSign::Auto;
+
+    for (; nextR_ < R1; nextR_ += step) {
+        NavSolution sol;
+        sol.rxSample = nextR_;
+        // Which satellites are usable changes from epoch to epoch here, and with them the unknowns
+        const auto statesOf = [](const NavSolution& n) {
+            int nGps = 0, nGal = 0;
+            for (const auto& o : n.obs)
+                if (o.available) (isGalileo(o.prn) ? nGal : nGps)++;
+            return nGps > 0 && nGal > 0 ? 5 : 4;
+        };
+        if (!haveRef_) {
+            buildObservations(sol, out.usableChannels, trk, nav, s, kLivePhaseLock);
+            double maxTx = -1e300;
+            for (const auto& o : sol.obs)
+                if (o.available) maxTx = std::max(maxTx, o.txTime);
+            if (maxTx < -1e299) continue;
+            sol.rxTime = maxTx + 0.0688;
+            buildObservations(sol, out.usableChannels, trk, nav, s, kLivePhaseLock);
+            if (!positionFix(sol, Vec3(), 0.0, 0.0, statesOf(sol), s, gnav, false)) continue;
+            trxRef_ = sol.rxTime - sol.bias / c;
+            Rref_ = nextR_;
+            haveRef_ = true;
+        }
+        sol = NavSolution();
+        sol.index = nextIndex_++;
+        sol.rxSample = nextR_;
+        sol.rxTime = trxRef_ + (nextR_ - Rref_) / fs;
+        buildObservations(sol, out.usableChannels, trk, nav, s, kLivePhaseLock);
+        if (positionFix(sol, havePrev_ ? xPrev_ : Vec3(), havePrev_ ? bPrev_ : 0.0, isbPrev_, statesOf(sol), s, gnav, true)) {
+            xPrev_ = sol.pos;
+            bPrev_ = sol.bias;
+            isbPrev_ = sol.isb;
+            havePrev_ = true;
+            sol.gpsTime = sol.rxTime - sol.bias / c;
+            if (!signKnown_ && sol.nUsed >= 5) {
+                out.signRms[0] = velocityFix(sol, +1.0, false);
+                out.signRms[1] = velocityFix(sol, -1.0, false);
+                sign_ = (out.signRms[1] >= 0 && out.signRms[1] < out.signRms[0]) ? -1.0 : 1.0;
+                signKnown_ = true;
+            }
+            if (signKnown_) velocityFix(sol, sign_, true);
+        }
+        out.sols.push_back(std::move(sol));
+    }
+    out.dopplerSign = int(sign_);
+    const size_t keep = size_t(std::max(1, maxFixes));
+    if (out.sols.size() > keep + keep / 8 + 1) out.sols.erase(out.sols.begin(), out.sols.end() - keep);
+    statistics(out, s, sign_);
+}
 
 PvtOutput solve(const std::vector<TrackingChannel>& trk, const std::vector<NavChannel>& nav,
                 const GlobalNavData& gnav, const ReceiverSettings& s)
@@ -382,57 +538,7 @@ PvtOutput solve(const std::vector<TrackingChannel>& trk, const std::vector<NavCh
     }
     out.dopplerSign = int(sign);
 
-    // ---- statistics
-    std::vector<const NavSolution*> valid;
-    for (const auto& sol : out.sols)
-        if (sol.valid) valid.push_back(&sol);
-    out.nValid = int(valid.size());
-    if (valid.empty()) {
-        out.error = QStringLiteral("No valid position fixes");
-        return out;
-    }
-    Vec3 mean;
-    for (const auto* v : valid) mean += v->pos;
-    mean = mean / double(valid.size());
-    out.meanPos = mean;
-    out.meanLlh = geo::ecefToGeodetic(mean);
-    out.utm = geo::toUtm(out.meanLlh.lat, out.meanLlh.lon);
-    double se = 0, sn = 0, su = 0, sp = 0, sh = 0, ns = 0, md = 0;
-    int nd = 0;
-    std::vector<double> horiz, sph;
-    for (auto& sol : out.sols) {
-        if (!sol.valid) continue;
-        sol.enu = geo::ecefToEnu(sol.pos - mean, out.meanLlh.lat, out.meanLlh.lon);
-        se += sol.enu.x * sol.enu.x; sn += sol.enu.y * sol.enu.y; su += sol.enu.z * sol.enu.z;
-        horiz.push_back(std::hypot(sol.enu.x, sol.enu.y));
-        sph.push_back(sol.enu.norm());
-        sp += sol.pdop; sh += sol.hdop; ns += sol.nUsed;
-        out.meanIsb += sol.isb;
-        if (sol.velValid) { md += sol.drift; ++nd; }
-    }
-    const double N = double(valid.size());
-    out.meanIsb /= N;
-    out.stdE = std::sqrt(se / N); out.stdN = std::sqrt(sn / N); out.stdU = std::sqrt(su / N);
-    out.drms2 = 2.0 * std::sqrt((se + sn) / N);
-    std::sort(horiz.begin(), horiz.end());
-    std::sort(sph.begin(), sph.end());
-    out.cep50 = horiz[horiz.size() / 2];
-    out.sep50 = sph[sph.size() / 2];
-    out.meanPdop = sp / N; out.meanHdop = sh / N; out.meanSats = ns / N;
-    out.meanDrift = nd ? md / nd : 0;
-    out.commonFreqOffset = -out.meanDrift * sign / kL1Wavelength;
-    out.effectiveIf = s.ifFreq + out.commonFreqOffset;
-    // clock bias slope
-    if (valid.size() >= 2) {
-        double st = 0, sb = 0, stt = 0, stb = 0;
-        for (const auto* v : valid) {
-            const double t = v->rxTime - valid.front()->rxTime;
-            st += t; sb += v->bias; stt += t * t; stb += t * v->bias;
-        }
-        const double den = N * stt - st * st;
-        if (den != 0) out.biasDrift = (N * stb - st * sb) / den;
-    }
-    out.firstGpsTime = valid.front()->gpsTime;
+    statistics(out, s, sign);
     return out;
 }
 

@@ -18,10 +18,12 @@ AcquisitionPage::AcquisitionPage(QWidget* parent) : PageBase(parent), ui(new Ui:
     ui->topSplitter->setStretchFactor(1, 3);
     ui->mainSplitter->setStretchFactor(0, 2);
     ui->mainSplitter->setStretchFactor(1, 5);
-    ui->resultsTable->setColumns({tr("PRN"), tr("Acquired"), tr("Metric"), tr("Peak"), tr("2nd peak"), tr("Noise mean"),
+    ui->resultsTable->setColumns({tr("PRN"), tr("System"), tr("Acquired"), tr("Metric"), tr("Peak"), tr("2nd peak"), tr("Noise mean"),
                                   tr("C/N0 (dB-Hz)"), tr("Code phase (samples)"), tr("Code phase (chips)"), tr("Coarse freq (Hz)"),
                                   tr("Fine correction (Hz)"), tr("Carrier freq (Hz)"), tr("Doppler (Hz)"), tr("Code Doppler (chips/s)")});
     ui->paramsTable->setColumns({tr("Parameter"), tr("Value")});
+    ui->metricPlot->setXTickText(satAxisText);
+    ui->cn0Plot->setXTickText(satAxisText);
     connect(ui->metricPlot, &PlotWidget::clicked, this, [this](double x, double) { selectPrn(int(std::lround(x))); });
     connect(ui->cn0Plot, &PlotWidget::clicked, this, [this](double x, double) { selectPrn(int(std::lround(x))); });
     connect(ui->resultsTable, &QTableWidget::cellClicked, this, [this](int r, int) {
@@ -66,7 +68,8 @@ void AcquisitionPage::refresh()
     metric_->addSeries(tr("not acquired"), nx, ny, PlotWidget::Bars, QColor(160, 160, 160));
     metric_->series(0).barWidth = metric_->series(1).barWidth = 0.7;
     metric_->addHLine(s.acqThreshold, QColor(214, 39, 40), tr("threshold %1").arg(s.acqThreshold));
-    if (s.useGps() && s.useGalileo()) metric_->addVLine(34, QColor(127, 127, 127), tr("Galileo: E01 at 36"), Qt::DotLine);
+    if (s.useGps() && s.useGalileo())
+        for (PlotWidget* p : {metric_, cn0_}) p->addVLine(34, QColor(127, 127, 127), tr("Galileo from here"), Qt::DotLine);
     metric_->setYIncludesZero(true);
     metric_->autoScale();
     cn0_->addSeries(tr("acquired"), cx, cy, PlotWidget::Bars, QColor(31, 119, 180));
@@ -81,19 +84,20 @@ void AcquisitionPage::refresh()
         const QColor bg = r.acquired ? goodColor() : QColor();
         table_->setText(i, 0, satLabel(r.prn), bg);
         table_->setKey(i, r.prn);
-        table_->setText(i, 1, r.acquired ? tr("yes") : tr("no"), bg);
-        table_->setNum(i, 2, r.metric, 3, bg);
-        table_->setSci(i, 3, r.peak, 5);
-        table_->setSci(i, 4, r.secondPeak, 5);
-        table_->setSci(i, 5, r.noiseMean, 5);
-        table_->setNum(i, 6, r.cn0, 1);
-        table_->setNum(i, 7, r.codePhase, 0);
-        table_->setNum(i, 8, r.codePhaseChips, 3);
-        table_->setNum(i, 9, r.coarseFreq, 1);
-        table_->setNum(i, 10, r.fineDelta, 2);
-        table_->setNum(i, 11, r.fineFreq, 2);
-        table_->setNum(i, 12, r.doppler, 2);
-        table_->setNum(i, 13, r.doppler / kCarrierToCode, 4);
+        table_->setText(i, 1, satSystem(r.prn), bg);
+        table_->setText(i, 2, r.acquired ? tr("yes") : tr("no"), bg);
+        table_->setNum(i, 3, r.metric, 3, bg);
+        table_->setSci(i, 4, r.peak, 5);
+        table_->setSci(i, 5, r.secondPeak, 5);
+        table_->setSci(i, 6, r.noiseMean, 5);
+        table_->setNum(i, 7, r.cn0, 1);
+        table_->setNum(i, 8, r.codePhase, 0);
+        table_->setNum(i, 9, r.codePhaseChips, 3);
+        table_->setNum(i, 10, r.coarseFreq, 1);
+        table_->setNum(i, 11, r.fineDelta, 2);
+        table_->setNum(i, 12, r.fineFreq, 2);
+        table_->setNum(i, 13, r.doppler, 2);
+        table_->setNum(i, 14, r.doppler / kCarrierToCode, 4);
     }
     table_->endFill();
 

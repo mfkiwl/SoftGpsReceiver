@@ -68,8 +68,7 @@ void SatellitesPage::refresh()
     for (int i : rx_->pvt.usableChannels) ui->prnCombo->addItem(satName(rx_->nav[size_t(i)].prn), rx_->nav[size_t(i)].prn);
     ui->prnCombo->blockSignals(false);
     const int n = int(rx_->pvt.sols.size());
-    ui->epochSlider->setRange(0, n - 1);
-    ui->epochSpin->setRange(0, n - 1);
+    setEpochRange(ui->epochSpin, ui->epochSlider, n);
     ui->skyPlot->setElevationMask(rx_->settings.elevationMask);
     fillTimePlots();
     showEpoch();

@@ -17,8 +17,10 @@ combined in one fix.
    (option `GNSS_OPTIMIZE_CORE_IN_DEBUG`), so only the GUI is unoptimised.
 4. On first start the program looks for a large `*.bin` file in the working directory and up to five levels above
    the executable, so `GPSdata-DiscreteComponents-fs38_192-if9_55.bin` is opened automatically. Otherwise use
-   *File > Open*. After that the last file is reopened.
+   *File > Open*. After that the last file is reopened, unless you closed it.
 5. Press **F5** (*Run all*), or run the stages one at a time with F6 (acquire), F7 (track), F8 (decode) and F9 (solve).
+6. *File > Close recording* (Ctrl+W) closes the file and clears all results, plots and sample buffers, leaving the
+   program as it was when it started. It is available when nothing is running, and works on a stopped live stream too.
 
 The sampling frequency, IF and sample format come from the file name (`fs38_192` = 38.192 MHz,
 `if9_55` = 9.55 MHz, int8 real samples by default, packed 2-bit real samples if the name contains `2bit`). You can
@@ -27,10 +29,70 @@ change them in *File > Settings*, along with every acquisition, tracking-loop an
 *File > Settings* also selects **GPS + Galileo**, **GPS only** or **Galileo only**. Searching for Galileo adds several
 seconds to acquisition, so choose GPS only for a recording made before Galileo was operating.
 
+Galileo satellites are named E and a number, such as E24, while GPS satellites go by their PRN. The Overview, Live and
+Acquisition tables have a *System* column, and the bar charts continue from the GPS PRNs into E01 to E36. On the sky plots
+GPS satellites are circles and Galileo satellites are squares, with a count of each in the corner.
+
 The file name gives the IF rounded to 9.55 MHz. The true IF of this recording is fs/4 = 9.548 MHz. The receiver
 copes either way, and the Position page reports the measured *effective IF* (9.547984 MHz) from the
 Doppler/clock-drift solution. If you set the IF to 9.548 MHz, the Doppler values are shown without the
 2 kHz offset.
+
+## Live mode: USRP N200
+
+Besides recordings, the receiver can process samples as they arrive from a USRP (written for the N200; other USRPs
+that UHD supports should work too). Everything updates while it runs: a **Live** tab shows the radio, the channels and
+the position, and whichever other page is open keeps refreshing, so the tracking loops, navigation message, orbits and
+least-squares solution can all be watched on the running signal.
+
+![Live page](docs/screenshots/23_Live.png)
+
+### Setting up the N200
+
+1. Install UHD from <https://files.ettus.com/binaries/uhd/>. The program looks for `uhd.dll` in `UHD_PKG_PATH`,
+   `C:\Program Files\UHD\bin` and `PATH`, or you can give its path in *Settings > Live*. UHD is loaded when you start,
+   so the program builds and runs without it.
+2. Connect the N200 to a **wired gigabit Ethernet** port. Give that port a static address such as 192.168.10.1 with mask
+   255.255.255.0 (the N200 ships as 192.168.10.2). Wi-Fi cannot carry this stream.
+3. Check the radio with UHD's own tools. The N200's firmware and FPGA image must match the UHD version;
+   `uhd_usrp_probe` says so if they do not.
+
+   ```
+   uhd_find_devices
+   uhd_usrp_probe --args addr=192.168.10.2
+   ```
+
+4. The daughterboard must cover 1575.42 MHz (DBSRX2, WBX, SBX and UBX do). An active GPS antenna needs DC power:
+   check whether your daughterboard supplies it, and use a bias tee if not.
+
+### Running it
+
+Set the address, sample rate and gain in *Settings > Live*, then press **F10** or *Start live* on the Live tab. Defaults
+are `addr=192.168.10.2`, 5 MS/s at 1575.42 MHz and 30 dB.
+
+* **First fix** takes about 30 to 60 s: a receiver with no stored data has to read a whole orbit from each satellite.
+  Satellites are found within seconds, and the channel table shows each one's progress.
+* **Gain:** watch *Signal level* on the Live tab, which warns when the level is too high or low.
+* **Sample rate:** GPS works from 2 MS/s, Galileo needs 4 MS/s. The N200 offers 100 MHz divided by an integer, and the
+  program uses the rate the device reports.
+* **Overflows** (samples lost on the way to the computer) are counted on the Live tab. The gap is filled so later
+  samples stay at the right time and the loops coast across it. Adding `recv_buff_size=50000000` to the device address
+  can help, and so can using a lower sample rate.
+* **Examining a page:** tick *Freeze pages* to stop the display while the receiver keeps running. Plots you zoom keep
+  their zoom across updates; double-click to release it.
+* **Recording:** tick *Record the samples to disk* in *Settings > Live* (20 MB/s at 5 MS/s). The file name carries
+  the rate and format, so *File > Open* processes it later like any recording.
+
+The tracking pages show the last 60 s and the Position pages the last 10 minutes (both adjustable). Long sessions use
+constant memory.
+
+### Trying it without a radio
+
+Set *Live source* to *Replay the open recording in real time* in *Settings > Live*: the open file then behaves like a
+stream, with no hardware or UHD.
+
+The USRP code itself can be tested through `tests/fake_uhd`, a stand-in `uhd.dll` that streams a file and can simulate
+lost packets and signal loss. It is built with `-DGNSS_BUILD_TESTS=ON`.
 
 ## Editing the GUI in Qt Designer
 
@@ -50,6 +112,7 @@ Every page, the main window and the settings dialog are `.ui` forms in `src/gui/
 | `EphemerisPage.ui` | ephemeris table, almanac, health/A-S/configuration, iono/UTC, special message, NMCT, received pages |
 | `SatellitesPage.ui` | sky plot, elevation, sub-satellite points, satellite state, step-by-step Kepler computation |
 | `MeasurementsPage.ui` | per-epoch pseudorange corrections table, PR change, residuals, code-minus-carrier, Doppler, tropo, SV clock |
+| `LivePage.ui` | live dashboard: radio status, channel table, signal strength, sky plot, recent fixes |
 | `PositionPage.ui` | summary, scatter/ENU/clock/DOP/velocity plots, solutions table, least-squares iterations, H and Q matrices |
 
 Notes for editing:
@@ -74,6 +137,9 @@ time axes are linked. Tables support Ctrl+C and *Export to CSV* from the context
 ```
 gnss_cli <file.bin> [--ms N] [--channels N] [--fs Hz] [--if Hz] [--gnss all|gps|gal] [--csv solutions.csv]
 SoftGpsReceiver <file.bin> --screenshots <dir>   # process, save a PNG of every page and sub-tab, exit
+
+gnss_cli <file.bin> --live [--speed X] [--seconds N]    # play a recording in real time
+gnss_cli --usrp [--args addr=192.168.10.2] [--rate 5e6] [--gain 30] [--antenna RX2] [--record dir] [--seconds N]
 ```
 
 ## Results for the sample recording
@@ -128,6 +194,34 @@ tracked, and E20 has no ephemeris. The receiver has no outlier rejection, so the
 
 The whole recording takes about 3 minutes on a 12-core CPU and 6.5 GB of memory, most of it for the per-epoch tracking
 history. Limit *Data to process* for a quicker run.
+
+### Adding simulated Galileo satellites to a GPS recording
+
+`tests/add_galileo.cpp`, built with `-DGNSS_BUILD_TESTS=ON`, makes a recording that exercises Galileo from one that has
+none. It takes an int8 real recording and writes a new one:
+
+```
+add_galileo <in.bin> <out.bin> [--sats 6] [--cn0 47] [--isb 3]
+```
+
+It solves the recording with GPS, then computes E1-B and E1-C signals for made-up satellites in a Walker 24/3/1
+constellation, arriving as they would at that position on that receiver's clock. They carry a full I/NAV message apart
+from the almanac. `--cn0` is the strength at the zenith, and `--isb` is the Galileo-GPS time offset in metres.
+
+The samples are multiplied by a whole number first, because a signal well under one count would otherwise disappear
+when rounded. The GPS signals are unchanged, but the raw signal pages and signal levels show the larger scale.
+
+Results from `GPS_Data_NordNav1e_fs16_3676-if4_1304.bin` with the default settings:
+
+| Satellites | Latitude | Longitude | Height | std E/N/U |
+|---|---|---|---|---|
+| 6 GPS, original file | 32.59086653 | -85.48919624 | 178.98 m | 2.73 / 2.63 / 5.87 m |
+| 6 Galileo | 32.59086767 | -85.48919626 | 179.01 m | 0.66 / 1.09 / 1.55 m |
+| 6 GPS + 6 Galileo | 32.59086694 | -85.48919640 | 178.98 m | 1.58 / 1.14 / 3.26 m |
+
+This tests the receiver chain and is not evidence of Galileo accuracy. The simulated signals have no multipath,
+ionosphere or front-end filtering, which is why their scatter is so small, and they take their position from the GPS
+solution and use the receiver's own orbit and atmosphere code, so agreement between the rows is expected.
 
 ## Screenshots
 
@@ -260,6 +354,9 @@ src/core/            GUI-independent receiver (Qt Core + Concurrent only)
   Geodesy            ECEF/geodetic/ENU/UTM, az/el, Saastamoinen, Klobuchar, GPS time
   Pvt                pseudoranges, corrections, iterative least squares, DOP, Doppler velocity
   Receiver           pipeline orchestration (runs on a worker thread)
+  LiveEngine         real-time receiver: channels start and stop, rolling decoding, incremental solution
+  LiveInput          sample sources for it: UhdInput (USRP through the UHD C API), ReplayInput (a file at its real rate)
+  LiveRing           sample ring buffer between the radio thread and everything that reads samples
   GalileoCodes       E1-B and E1-C primary codes (memory codes, from a table)
   GalileoNav         I/NAV: page sync, deinterleaver, Viterbi decoder, CRC-24Q, word fields, ephemeris
 src/gui/             Qt Widgets front end (.ui forms + page classes, PlotWidget, SkyPlotWidget, DataTable)

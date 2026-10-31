@@ -19,6 +19,9 @@
       <widget class="gui::OverviewPage" name="overviewPage">
        <attribute name="title"><string>Overview</string></attribute>
       </widget>
+      <widget class="gui::LivePage" name="livePage">
+       <attribute name="title"><string>Live</string></attribute>
+      </widget>
       <widget class="gui::RawSignalPage" name="rawSignalPage">
        <attribute name="title"><string>Raw signal</string></attribute>
       </widget>
@@ -58,6 +61,7 @@
    <widget class="QMenu" name="menuFile">
     <property name="title"><string>&amp;File</string></property>
     <addaction name="actionOpen"/>
+    <addaction name="actionClose"/>
     <addaction name="actionSettings"/>
     <addaction name="separator"/>
     <addaction name="actionExportCsv"/>
@@ -74,6 +78,8 @@
     <addaction name="actionDecode"/>
     <addaction name="actionSolve"/>
     <addaction name="separator"/>
+    <addaction name="actionStartLive"/>
+    <addaction name="separator"/>
     <addaction name="actionStop"/>
    </widget>
    <widget class="QMenu" name="menuView">
@@ -81,6 +87,7 @@
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title"><string>&amp;Help</string></property>
+    <addaction name="actionSetupGuide"/>
     <addaction name="actionAlgorithms"/>
     <addaction name="actionAbout"/>
    </widget>
@@ -95,6 +102,7 @@
    <attribute name="toolBarArea"><enum>TopToolBarArea</enum></attribute>
    <attribute name="toolBarBreak"><bool>false</bool></attribute>
    <addaction name="actionOpen"/>
+   <addaction name="actionClose"/>
    <addaction name="actionSettings"/>
    <addaction name="separator"/>
    <addaction name="actionRunAll"/>
@@ -102,6 +110,8 @@
    <addaction name="actionTrack"/>
    <addaction name="actionDecode"/>
    <addaction name="actionSolve"/>
+   <addaction name="separator"/>
+   <addaction name="actionStartLive"/>
    <addaction name="actionStop"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
@@ -128,6 +138,12 @@
    <property name="text"><string>&amp;Open recording...</string></property>
    <property name="toolTip"><string>Open a recorded IF sample file (.bin)</string></property>
    <property name="shortcut"><string>Ctrl+O</string></property>
+  </action>
+  <action name="actionClose">
+   <property name="enabled"><bool>false</bool></property>
+   <property name="text"><string>C&amp;lose recording</string></property>
+   <property name="toolTip"><string>Close the recording and clear all results, plots and sample buffers</string></property>
+   <property name="shortcut"><string>Ctrl+W</string></property>
   </action>
   <action name="actionSettings">
    <property name="text"><string>&amp;Settings...</string></property>
@@ -169,6 +185,11 @@
    <property name="toolTip"><string>Pseudoranges and least-squares position/velocity/time</string></property>
    <property name="shortcut"><string>F9</string></property>
   </action>
+  <action name="actionStartLive">
+   <property name="text"><string>Live</string></property>
+   <property name="toolTip"><string>Process samples as they arrive from the radio (or replay the recording in real time)</string></property>
+   <property name="shortcut"><string>F10</string></property>
+  </action>
   <action name="actionStop">
    <property name="enabled"><bool>false</bool></property>
    <property name="text"><string>Stop</string></property>
@@ -177,6 +198,9 @@
   <action name="actionAlgorithms">
    <property name="text"><string>How it works (algorithms)</string></property>
    <property name="shortcut"><string>F1</string></property>
+  </action>
+  <action name="actionSetupGuide">
+   <property name="text"><string>Live receiver &amp;setup guide</string></property>
   </action>
   <action name="actionAbout">
    <property name="text"><string>&amp;About</string></property>
@@ -187,6 +211,12 @@
    <class>gui::OverviewPage</class>
    <extends>QWidget</extends>
    <header>gui/OverviewPage.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>gui::LivePage</class>
+   <extends>QWidget</extends>
+   <header>gui/LivePage.h</header>
    <container>1</container>
   </customwidget>
   <customwidget>

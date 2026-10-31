@@ -146,6 +146,28 @@ void ReceiverSettings::save(QSettings& s) const
     s.setValue("elevationWeighting", elevationWeighting);
     s.setValue("dopplerSign", int(dopplerSign));
     s.endGroup();
+
+    s.beginGroup(QStringLiteral("live"));
+    s.setValue("source", int(live.source));
+    s.setValue("deviceArgs", live.deviceArgs);
+    s.setValue("subdev", live.subdev);
+    s.setValue("antenna", live.antenna);
+    s.setValue("clockSource", live.clockSource);
+    s.setValue("uhdLibrary", live.uhdLibrary);
+    s.setValue("centerFreq", live.centerFreq);
+    s.setValue("sampleRate", live.sampleRate);
+    s.setValue("gainDb", live.gainDb);
+    s.setValue("bandwidth", live.bandwidth);
+    s.setValue("loOffset", live.loOffset);
+    s.setValue("ringSeconds", live.ringSeconds);
+    s.setValue("windowSeconds", live.windowSeconds);
+    s.setValue("historySeconds", live.historySeconds);
+    s.setValue("updateMs", live.updateMs);
+    s.setValue("acqIntervalSec", live.acqIntervalSec);
+    s.setValue("replaySpeed", live.replaySpeed);
+    s.setValue("record", live.record);
+    s.setValue("recordDir", live.recordDir);
+    s.endGroup();
 }
 
 void ReceiverSettings::load(QSettings& s)
@@ -180,6 +202,29 @@ void ReceiverSettings::load(QSettings& s)
     useEarthRotation = s.value("useEarthRotation", d.useEarthRotation).toBool();
     elevationWeighting = s.value("elevationWeighting", d.elevationWeighting).toBool();
     dopplerSign = DopplerSign(s.value("dopplerSign", int(d.dopplerSign)).toInt());
+    s.endGroup();
+
+    const LiveSettings ld;
+    s.beginGroup(QStringLiteral("live"));
+    live.source = LiveSourceKind(s.value("source", int(ld.source)).toInt());
+    live.deviceArgs = s.value("deviceArgs", ld.deviceArgs).toString();
+    live.subdev = s.value("subdev", ld.subdev).toString();
+    live.antenna = s.value("antenna", ld.antenna).toString();
+    live.clockSource = s.value("clockSource", ld.clockSource).toString();
+    live.uhdLibrary = s.value("uhdLibrary", ld.uhdLibrary).toString();
+    live.centerFreq = s.value("centerFreq", ld.centerFreq).toDouble();
+    live.sampleRate = s.value("sampleRate", ld.sampleRate).toDouble();
+    live.gainDb = s.value("gainDb", ld.gainDb).toDouble();
+    live.bandwidth = s.value("bandwidth", ld.bandwidth).toDouble();
+    live.loOffset = s.value("loOffset", ld.loOffset).toDouble();
+    live.ringSeconds = s.value("ringSeconds", ld.ringSeconds).toInt();
+    live.windowSeconds = s.value("windowSeconds", ld.windowSeconds).toInt();
+    live.historySeconds = s.value("historySeconds", ld.historySeconds).toInt();
+    live.updateMs = s.value("updateMs", ld.updateMs).toInt();
+    live.acqIntervalSec = s.value("acqIntervalSec", ld.acqIntervalSec).toInt();
+    live.replaySpeed = s.value("replaySpeed", ld.replaySpeed).toDouble();
+    live.record = s.value("record", ld.record).toBool();
+    live.recordDir = s.value("recordDir", ld.recordDir).toString();
     s.endGroup();
 }
 

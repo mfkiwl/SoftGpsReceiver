@@ -148,6 +148,62 @@
        </item>
       </layout>
      </widget>
+     <!-- ============================================================ Live -->
+     <widget class="QWidget" name="liveTab">
+      <attribute name="title"><string>Live</string></attribute>
+      <layout class="QFormLayout" name="liveForm">
+       <item row="0" column="0"><widget class="QLabel" name="liveSourceLabel"><property name="text"><string>Live source</string></property></widget></item>
+       <item row="0" column="1">
+        <widget class="QComboBox" name="liveSourceCombo">
+         <item><property name="text"><string>USRP (through the UHD driver)</string></property></item>
+         <item><property name="text"><string>Replay the open recording in real time</string></property></item>
+        </widget>
+       </item>
+       <item row="1" column="0"><widget class="QLabel" name="deviceArgsLabel"><property name="text"><string>Device address</string></property></widget></item>
+       <item row="1" column="1"><widget class="QLineEdit" name="deviceArgsEdit"><property name="toolTip"><string>UHD device arguments, e.g. addr=192.168.10.2 (the N200 default). recv_buff_size=50000000 can be appended to help against overflows.</string></property></widget></item>
+       <item row="2" column="0"><widget class="QLabel" name="centerLabel"><property name="text"><string>Centre frequency</string></property></widget></item>
+       <item row="2" column="1"><widget class="QDoubleSpinBox" name="centerSpin"><property name="suffix"><string> MHz</string></property><property name="decimals"><number>6</number></property><property name="minimum"><double>1.000000000000000</double></property><property name="maximum"><double>6000.000000000000000</double></property></widget></item>
+       <item row="3" column="0"><widget class="QLabel" name="rateLabel"><property name="text"><string>Sample rate</string></property></widget></item>
+       <item row="3" column="1"><widget class="QDoubleSpinBox" name="rateSpin"><property name="toolTip"><string>Complex samples per second. GPS works from 2 MS/s, Galileo needs 4 MS/s. The N200 gives 100 MHz divided by an integer and reports the rate it actually set.</string></property><property name="suffix"><string> MS/s</string></property><property name="decimals"><number>3</number></property><property name="minimum"><double>0.500000000000000</double></property><property name="maximum"><double>50.000000000000000</double></property><property name="singleStep"><double>0.500000000000000</double></property></widget></item>
+       <item row="4" column="0"><widget class="QLabel" name="gainLabel"><property name="text"><string>Gain</string></property></widget></item>
+       <item row="4" column="1"><widget class="QDoubleSpinBox" name="gainSpin"><property name="suffix"><string> dB</string></property><property name="decimals"><number>1</number></property><property name="maximum"><double>120.000000000000000</double></property></widget></item>
+       <item row="5" column="0"><widget class="QLabel" name="antennaLabel"><property name="text"><string>Antenna port</string></property></widget></item>
+       <item row="5" column="1"><widget class="QLineEdit" name="antennaEdit"><property name="toolTip"><string>Empty = the daughterboard's default, e.g. RX2 or TX/RX on a WBX or SBX</string></property></widget></item>
+       <item row="6" column="0"><widget class="QLabel" name="subdevLabel"><property name="text"><string>Subdevice</string></property></widget></item>
+       <item row="6" column="1"><widget class="QLineEdit" name="subdevEdit"><property name="toolTip"><string>Empty = the default, e.g. A:0</string></property></widget></item>
+       <item row="7" column="0"><widget class="QLabel" name="clockLabel"><property name="text"><string>Clock source</string></property></widget></item>
+       <item row="7" column="1">
+        <widget class="QComboBox" name="clockCombo">
+         <property name="editable"><bool>true</bool></property>
+         <item><property name="text"><string>internal</string></property></item>
+         <item><property name="text"><string>external</string></property></item>
+         <item><property name="text"><string>gpsdo</string></property></item>
+         <item><property name="text"><string>mimo</string></property></item>
+        </widget>
+       </item>
+       <item row="8" column="0"><widget class="QLabel" name="bandwidthLabel"><property name="text"><string>Analog bandwidth</string></property></widget></item>
+       <item row="8" column="1"><widget class="QDoubleSpinBox" name="bandwidthSpin"><property name="specialValueText"><string>daughterboard default</string></property><property name="suffix"><string> MHz</string></property><property name="decimals"><number>3</number></property><property name="maximum"><double>200.000000000000000</double></property></widget></item>
+       <item row="9" column="0"><widget class="QLabel" name="loOffsetLabel"><property name="text"><string>LO offset</string></property></widget></item>
+       <item row="9" column="1"><widget class="QDoubleSpinBox" name="loOffsetSpin"><property name="toolTip"><string>Tunes the LO this far from the centre and lets the digital down-converter make up the difference, which keeps the LO leakage out of the band.</string></property><property name="suffix"><string> MHz</string></property><property name="decimals"><number>3</number></property><property name="minimum"><double>-100.000000000000000</double></property><property name="maximum"><double>100.000000000000000</double></property></widget></item>
+       <item row="10" column="0"><widget class="QLabel" name="uhdPathLabel"><property name="text"><string>uhd.dll</string></property></widget></item>
+       <item row="10" column="1"><widget class="QLineEdit" name="uhdPathEdit"><property name="toolTip"><string>Empty = look in UHD_PKG_PATH, Program Files and PATH</string></property></widget></item>
+       <item row="11" column="0"><widget class="QLabel" name="ringLabel"><property name="text"><string>Sample buffer</string></property></widget></item>
+       <item row="11" column="1"><widget class="QSpinBox" name="ringSpin"><property name="suffix"><string> s</string></property><property name="minimum"><number>2</number></property><property name="maximum"><number>120</number></property></widget></item>
+       <item row="12" column="0"><widget class="QLabel" name="windowLabel"><property name="text"><string>Tracking history</string></property></widget></item>
+       <item row="12" column="1"><widget class="QSpinBox" name="windowSpin"><property name="suffix"><string> s</string></property><property name="minimum"><number>36</number></property><property name="maximum"><number>600</number></property></widget></item>
+       <item row="13" column="0"><widget class="QLabel" name="historyLabel"><property name="text"><string>Position history</string></property></widget></item>
+       <item row="13" column="1"><widget class="QSpinBox" name="historySpin"><property name="suffix"><string> s</string></property><property name="minimum"><number>10</number></property><property name="maximum"><number>86400</number></property></widget></item>
+       <item row="14" column="0"><widget class="QLabel" name="updateLabel"><property name="text"><string>Update every</string></property></widget></item>
+       <item row="14" column="1"><widget class="QSpinBox" name="updateSpin"><property name="suffix"><string> ms</string></property><property name="minimum"><number>100</number></property><property name="maximum"><number>10000</number></property><property name="singleStep"><number>100</number></property></widget></item>
+       <item row="15" column="0"><widget class="QLabel" name="acqIntervalLabel"><property name="text"><string>Search for satellites every</string></property></widget></item>
+       <item row="15" column="1"><widget class="QSpinBox" name="acqIntervalSpin"><property name="suffix"><string> s</string></property><property name="minimum"><number>1</number></property><property name="maximum"><number>600</number></property></widget></item>
+       <item row="16" column="0"><widget class="QLabel" name="replaySpeedLabel"><property name="text"><string>Replay speed</string></property></widget></item>
+       <item row="16" column="1"><widget class="QDoubleSpinBox" name="replaySpeedSpin"><property name="suffix"><string> x</string></property><property name="minimum"><double>0.100000000000000</double></property><property name="maximum"><double>100.000000000000000</double></property></widget></item>
+       <item row="17" column="1"><widget class="QCheckBox" name="recordCheck"><property name="text"><string>Record the samples to disk (20 MB/s at 5 MS/s)</string></property></widget></item>
+       <item row="18" column="0"><widget class="QLabel" name="recordDirLabel"><property name="text"><string>Recording folder</string></property></widget></item>
+       <item row="18" column="1"><widget class="QLineEdit" name="recordDirEdit"/></item>
+      </layout>
+     </widget>
     </widget>
    </item>
    <item>

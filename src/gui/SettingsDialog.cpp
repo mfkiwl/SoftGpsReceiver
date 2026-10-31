@@ -87,6 +87,26 @@ void SettingsDialog::load(const ReceiverSettings& s)
     ui->earthRotCheck->setChecked(s.useEarthRotation);
     ui->elWeightCheck->setChecked(s.elevationWeighting);
     ui->dopSignCombo->setCurrentIndex(int(s.dopplerSign));
+    const LiveSettings& l = s.live;
+    ui->liveSourceCombo->setCurrentIndex(int(l.source));
+    ui->deviceArgsEdit->setText(l.deviceArgs);
+    ui->centerSpin->setValue(l.centerFreq / 1e6);
+    ui->rateSpin->setValue(l.sampleRate / 1e6);
+    ui->gainSpin->setValue(l.gainDb);
+    ui->antennaEdit->setText(l.antenna);
+    ui->subdevEdit->setText(l.subdev);
+    ui->clockCombo->setCurrentText(l.clockSource);
+    ui->bandwidthSpin->setValue(l.bandwidth / 1e6);
+    ui->loOffsetSpin->setValue(l.loOffset / 1e6);
+    ui->uhdPathEdit->setText(l.uhdLibrary);
+    ui->ringSpin->setValue(l.ringSeconds);
+    ui->windowSpin->setValue(l.windowSeconds);
+    ui->historySpin->setValue(l.historySeconds);
+    ui->updateSpin->setValue(l.updateMs);
+    ui->acqIntervalSpin->setValue(l.acqIntervalSec);
+    ui->replaySpeedSpin->setValue(l.replaySpeed);
+    ui->recordCheck->setChecked(l.record);
+    ui->recordDirEdit->setText(l.recordDir);
     updateDerived();
 }
 
@@ -136,6 +156,26 @@ ReceiverSettings SettingsDialog::settings() const
     s.useEarthRotation = ui->earthRotCheck->isChecked();
     s.elevationWeighting = ui->elWeightCheck->isChecked();
     s.dopplerSign = DopplerSign(ui->dopSignCombo->currentIndex());
+    LiveSettings& l = s.live;
+    l.source = LiveSourceKind(ui->liveSourceCombo->currentIndex());
+    l.deviceArgs = ui->deviceArgsEdit->text().trimmed();
+    l.centerFreq = ui->centerSpin->value() * 1e6;
+    l.sampleRate = ui->rateSpin->value() * 1e6;
+    l.gainDb = ui->gainSpin->value();
+    l.antenna = ui->antennaEdit->text().trimmed();
+    l.subdev = ui->subdevEdit->text().trimmed();
+    l.clockSource = ui->clockCombo->currentText().trimmed();
+    l.bandwidth = ui->bandwidthSpin->value() * 1e6;
+    l.loOffset = ui->loOffsetSpin->value() * 1e6;
+    l.uhdLibrary = ui->uhdPathEdit->text().trimmed();
+    l.ringSeconds = ui->ringSpin->value();
+    l.windowSeconds = ui->windowSpin->value();
+    l.historySeconds = ui->historySpin->value();
+    l.updateMs = ui->updateSpin->value();
+    l.acqIntervalSec = ui->acqIntervalSpin->value();
+    l.replaySpeed = ui->replaySpeedSpin->value();
+    l.record = ui->recordCheck->isChecked();
+    l.recordDir = ui->recordDirEdit->text().trimmed();
     return s;
 }
 

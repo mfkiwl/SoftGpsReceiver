@@ -1,4 +1,5 @@
 #include "SignalSource.h"
+#include "LiveRing.h"
 
 #include <cstring>
 #include <cstdint>
@@ -42,8 +43,32 @@ bool SignalSource::open(const QString& path, SampleFormat fmt, qint64 skipBytes,
     return true;
 }
 
+void SignalSource::attachRing(std::shared_ptr<LiveRing> ring)
+{
+    close();
+    ring_ = std::move(ring);
+    fmt_ = SampleFormat::Int16IQ;
+    bytesPerSample_ = 4;
+    samplesPerByte_ = 1;
+    skip_ = 0;
+}
+
+qint64 SignalSource::numSamples() const
+{
+    if (ring_) return ring_->head();
+    if (limit_) return std::min(limit_->load(std::memory_order_acquire), numSamples_);
+    return numSamples_;
+}
+
+qint64 SignalSource::oldestSample() const
+{
+    return ring_ ? ring_->oldest() : 0;
+}
+
 void SignalSource::close()
 {
+    ring_.reset();
+    limit_ = nullptr;
     if (data_) {
         file_.unmap(const_cast<uchar*>(data_));
         data_ = nullptr;
@@ -56,6 +81,7 @@ void SignalSource::close()
 
 int SignalSource::read(qint64 start, int count, float* outI, float* outQ) const
 {
+    if (ring_) return ring_->read(start, count, outI, outQ);
     if (!data_ || start < 0 || start >= numSamples_ || count <= 0) return 0;
     const int n = int(std::min<qint64>(count, numSamples_ - start));
     const uchar* p = data_ + skip_ + start / samplesPerByte_ * bytesPerSample_;

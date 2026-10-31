@@ -42,6 +42,9 @@ add_library(gnsscore STATIC
     src/core/Geodesy.h             src/core/Geodesy.cpp
     src/core/Pvt.h                 src/core/Pvt.cpp
     src/core/Receiver.h            src/core/Receiver.cpp
+    src/core/LiveRing.h            src/core/LiveRing.cpp
+    src/core/LiveInput.h           src/core/ReplayInput.cpp       src/core/UhdInput.cpp
+    src/core/LiveEngine.h          src/core/LiveEngine.cpp
 )
 target_include_directories(gnsscore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(gnsscore PUBLIC Qt6::Core Qt6::Concurrent)
@@ -68,8 +71,7 @@ endif()
 # ---------------------------------------------------------------------------
 option(GNSS_BUILD_GUI "Build the Qt Widgets application" ON)
 if(GNSS_BUILD_GUI)
-qt_add_executable(SoftGpsReceiver WIN32 MACOSX_BUNDLE
-    src/main.cpp
+set(GNSS_GUI_SOURCES
     src/gui/MainWindow.h           src/gui/MainWindow.cpp         src/gui/MainWindow.ui
     src/gui/SettingsDialog.h       src/gui/SettingsDialog.cpp     src/gui/SettingsDialog.ui
     src/gui/OverviewPage.h         src/gui/OverviewPage.cpp       src/gui/OverviewPage.ui
@@ -83,11 +85,13 @@ qt_add_executable(SoftGpsReceiver WIN32 MACOSX_BUNDLE
     src/gui/SatellitesPage.h       src/gui/SatellitesPage.cpp     src/gui/SatellitesPage.ui
     src/gui/MeasurementsPage.h     src/gui/MeasurementsPage.cpp   src/gui/MeasurementsPage.ui
     src/gui/PositionPage.h         src/gui/PositionPage.cpp       src/gui/PositionPage.ui
+    src/gui/LivePage.h             src/gui/LivePage.cpp           src/gui/LivePage.ui
     src/gui/PlotWidget.h           src/gui/PlotWidget.cpp
     src/gui/SkyPlotWidget.h        src/gui/SkyPlotWidget.cpp
     src/gui/DataTable.h            src/gui/DataTable.cpp
     src/gui/GuiUtil.h              src/gui/GuiUtil.cpp
 )
+qt_add_executable(SoftGpsReceiver WIN32 MACOSX_BUNDLE src/main.cpp ${GNSS_GUI_SOURCES})
 qt_add_resources(SoftGpsReceiver "docs"
     PREFIX "/"
     FILES docs/algorithms.html
@@ -101,6 +105,25 @@ if(WIN32)
 endif()
 target_include_directories(SoftGpsReceiver PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/gui)
 target_link_libraries(SoftGpsReceiver PRIVATE gnsscore Qt6::Widgets Qt6::Gui)
+
+# Help file, next to the executable. Needs Microsoft HTML Help Workshop.
+find_program(GNSS_HHC hhc PATHS "C:/Program Files (x86)/HTML Help Workshop" "C:/Program Files/HTML Help Workshop")
+if(WIN32 AND GNSS_HHC)
+    file(GLOB GNSS_HELP_FILES CONFIGURE_DEPENDS docs/help/*)
+    add_custom_command(OUTPUT ${CMAKE_BINARY_DIR}/help/SoftGpsReceiver.chm
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/docs/help ${CMAKE_BINARY_DIR}/help
+        COMMAND cmd /c .\\build_chm.cmd "${GNSS_HHC}" SoftGpsReceiver.hhp
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/help
+        DEPENDS ${GNSS_HELP_FILES} VERBATIM)
+    # Part of building the executable itself, as Qt Creator may build only that target before running
+    add_custom_target(help_chm DEPENDS ${CMAKE_BINARY_DIR}/help/SoftGpsReceiver.chm)
+    add_dependencies(SoftGpsReceiver help_chm)
+    add_custom_command(TARGET SoftGpsReceiver POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_BINARY_DIR}/help/SoftGpsReceiver.chm $<TARGET_FILE_DIR:SoftGpsReceiver>
+        VERBATIM)
+elseif(WIN32)
+    message(STATUS "HTML Help Workshop not found: SoftGpsReceiver.chm will not be built")
+endif()
 endif()
 # ---------------------------------------------------------------------------
 # Command line front end (batch processing / regression testing)
@@ -117,4 +140,27 @@ if(GNSS_BUILD_TESTS)
     qt_add_executable(test_galileo tests/test_galileo.cpp)
     target_link_libraries(test_galileo PRIVATE gnsscore)
     add_test(NAME test_galileo COMMAND test_galileo)
+
+    # Adds simulated Galileo satellites to a GPS recording (see add_galileo.cpp)
+    qt_add_executable(add_galileo tests/add_galileo.cpp)
+    target_link_libraries(add_galileo PRIVATE gnsscore)
+
+    # Drives the real widgets. Given a recording it also tests closing one (see test_gui.cpp)
+    if(GNSS_BUILD_GUI)
+        qt_add_executable(test_gui tests/test_gui.cpp ${GNSS_GUI_SOURCES})
+        target_include_directories(test_gui PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/gui)
+        target_link_libraries(test_gui PRIVATE gnsscore Qt6::Widgets Qt6::Gui)
+        if(WIN32)
+            target_link_libraries(test_gui PRIVATE psapi)
+        endif()
+        add_test(NAME test_gui COMMAND test_gui)
+        set_tests_properties(test_gui PROPERTIES ENVIRONMENT QT_QPA_PLATFORM=offscreen)
+    endif()
+
+    # Stands in for the UHD driver, to test the USRP path without a radio (see fake_uhd.cpp)
+    if(WIN32)
+        add_library(fake_uhd SHARED tests/fake_uhd/fake_uhd.cpp)
+        set_target_properties(fake_uhd PROPERTIES OUTPUT_NAME uhd PREFIX "" RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/fake_uhd
+                              AUTOMOC OFF AUTOUIC OFF AUTORCC OFF)
+    endif()
 endif()

@@ -1,0 +1,17 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<title>Connecting a USRP N200</title><link rel="stylesheet" href="help.css"></head><body>
+<h1>Connecting a USRP N200</h1>
+<ol>
+<li><b>Install UHD</b> from <code>https://files.ettus.com/binaries/uhd/</code>. The program looks in <code>UHD_PKG_PATH</code>, <code>C:\Program Files\UHD\bin</code> and <code>PATH</code>.</li>
+<li><b>Connect the network.</b> Use a wired gigabit port; Wi-Fi cannot carry the stream. Give that port the static address 192.168.10.1, mask 255.255.255.0. The N200 ships as 192.168.10.2.</li>
+<li><b>Check the radio.</b> The firmware and FPGA image must match UHD, and the probe reports it if they do not.
+<pre>uhd_find_devices
+uhd_usrp_probe --args addr=192.168.10.2</pre></li>
+<li><b>Connect the RF chain with the DC supply off:</b> antenna to the bias tee RF+DC port, bias tee RF port to the N200 RX2 port.</li>
+<li><b>Power the antenna.</b> Set the supply to the antenna's voltage, connect it to the bias tee DC port and switch on. A current near the antenna's rating shows that its amplifier is running.</li>
+<li><b>Configure the program</b>: see <a href="settings.html">Settings for live mode</a>.</li>
+<li><b>Press F10.</b> Satellites should appear within seconds. The first position takes about 30 to 60 s, because each satellite's orbit has to be read from its signal.</li>
+</ol>
+</body></html>

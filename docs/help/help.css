@@ -1,0 +1,4 @@
+body{font-family:Segoe UI,Arial,sans-serif;font-size:10pt;margin:16px;line-height:1.4}
+h1{font-size:16pt;color:#1f4e79}h2{font-size:12pt;color:#1f4e79;margin-top:18px}
+table{border-collapse:collapse;margin:8px 0}th,td{border:1px solid #bbb;padding:4px 8px;text-align:left;vertical-align:top}th{background:#e8eef5}
+pre{background:#f3f3f3;padding:8px}.warn{background:#fff3cd;border-left:4px solid #e0a800;padding:8px;margin:10px 0}

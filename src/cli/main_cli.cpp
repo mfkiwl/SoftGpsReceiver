@@ -2,14 +2,24 @@
 // prints the intermediate results. Useful for batch processing and testing.
 //
 //   gnss_cli <file.bin> [--ms N] [--channels N] [--fs Hz] [--if Hz] [--gnss all|gps|gal] [--csv out.csv]
+//
+// Live mode processes samples as they arrive, printing one line per update:
+//
+//   gnss_cli <file.bin> --live [--speed X] [--seconds N]       plays the recording in real time (or X times that)
+//   gnss_cli --usrp [--args addr=192.168.10.2] [--rate 5e6] [--center 1575.42e6] [--gain 30] [--antenna RX2]
+//            [--subdev A:0] [--clock internal] [--lo-offset Hz] [--uhd path/uhd.dll] [--record dir] [--seconds N]
+//
+// Further live options: --update-ms N, --window s, --acq-interval s
 
 #include "core/Constants.h"
 #include "core/Geodesy.h"
+#include "core/LiveEngine.h"
 #include "core/Receiver.h"
 
 #include <QCoreApplication>
 #include <QFile>
 #include <QTextStream>
+#include <QTimer>
 #include <cmath>
 #include <cstdio>
 
@@ -21,24 +31,100 @@ static QTextStream& out()
     return s;
 }
 
+static void writeCsv(const QString& csv, const PvtOutput& p)
+{
+    if (csv.isEmpty()) return;
+    QFile f(csv);
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) return;
+    QTextStream ts(&f);
+    ts << "epoch,gpsTow,nSat,lat,lon,h,x,y,z,bias,pdop,hdop,vdop,ve,vn,vu\n";
+    for (const auto& s : p.sols)
+        if (s.valid)
+            ts << QString::asprintf("%d,%.4f,%d,%.9f,%.9f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n",
+                                    s.index, s.gpsTime, s.nUsed, s.llh.lat * 180 / kPi, s.llh.lon * 180 / kPi,
+                                    s.llh.h, s.pos.x, s.pos.y, s.pos.z, s.bias, s.pdop, s.hdop, s.vdop,
+                                    s.velEnu.x, s.velEnu.y, s.velEnu.z);
+}
+
+static int runLive(Receiver& rx, int seconds, const QString& csv)
+{
+    LiveEngine live;
+    LiveStatus last;
+    QObject::connect(&live, &LiveEngine::logMessage, [](const QString& t) { out() << t << "\n"; out().flush(); });
+    QObject::connect(&live, &LiveEngine::snapshotReady, [&] {
+        LiveSnapshot snap;
+        if (!live.takeSnapshot(snap)) return;
+        const LiveStatus st = snap.status;
+        rx.applyLiveSnapshot(std::move(snap));
+        last = st;
+        const NavSolution* fix = nullptr;
+        for (auto it = rx.pvt.sols.rbegin(); it != rx.pvt.sols.rend() && !fix; ++it)
+            if (it->valid) fix = &*it;
+        QString line = QString::asprintf("t=%6.1f ch=%2d usable=%2d lag=%6.1fms rate=%.3fMS/s ovf=%lld lost=%lld level=%.1f",
+                                         st.streamSec, st.channels, st.usable, st.lagMs, st.measuredRate / 1e6,
+                                         st.overflows, st.lostSamples, st.levelRms);
+        if (fix)
+            line += QString::asprintf(" | fix %.7f %.7f %.1f m sats=%d pdop=%.2f rms=%.1f tow=%.1f", fix->llh.lat * 180 / kPi,
+                                      fix->llh.lon * 180 / kPi, fix->llh.h, fix->nUsed, fix->pdop, fix->rms, fix->gpsTime);
+        out() << line << "\n";
+        out().flush();
+    });
+    QObject::connect(&live, &LiveEngine::finished, QCoreApplication::instance(), &QCoreApplication::quit, Qt::QueuedConnection);
+    QString err;
+    if (!live.start(rx.settings, &rx.source, &err)) {
+        out() << err << "\n";
+        return 7;
+    }
+    if (seconds > 0) QTimer::singleShot(seconds * 1000, &live, [&live] { live.stop(); });
+    QCoreApplication::exec();
+    live.stop();
+    LiveSnapshot snap;
+    if (live.takeSnapshot(snap)) {
+        last = snap.status;
+        rx.applyLiveSnapshot(std::move(snap));
+    }
+    const auto& p = rx.pvt;
+    out() << QString::asprintf("\nLive summary: %.1f s of signal, %d fixes kept, first fix at %.1f s, %d overflows, %lld samples lost, %d channels at the end\n",
+                               last.streamSec, p.nValid, last.ttffSec, int(last.overflows), last.lostSamples, last.channels);
+    if (p.nValid > 0) {
+        out() << QString::asprintf("Mean: lat %.8f lon %.8f h %.2f  (ECEF %.2f %.2f %.2f)\n", p.meanLlh.lat * 180 / kPi,
+                                   p.meanLlh.lon * 180 / kPi, p.meanLlh.h, p.meanPos.x, p.meanPos.y, p.meanPos.z);
+        out() << QString::asprintf("std E/N/U %.2f %.2f %.2f m, CEP50 %.2f m, sats %.1f, PDOP %.2f, effective IF %.1f Hz\n", p.stdE, p.stdN, p.stdU,
+                                   p.cep50, p.meanSats, p.meanPdop, p.effectiveIf);
+    }
+    writeCsv(csv, p);
+    out().flush();
+    return p.nValid > 0 ? 0 : 8;
+}
+
 int main(int argc, char** argv)
 {
     QCoreApplication app(argc, argv);
     const QStringList args = app.arguments();
     if (args.size() < 2) {
-        out() << "usage: gnss_cli <file.bin> [--ms N] [--channels N] [--fs Hz] [--if Hz] [--gnss all|gps|gal] [--csv out.csv]\n";
+        out() << "usage: gnss_cli <file.bin> [--ms N] [--channels N] [--fs Hz] [--if Hz] [--gnss all|gps|gal] [--csv out.csv]\n"
+                 "       gnss_cli <file.bin> --live [--speed X] [--seconds N]\n"
+                 "       gnss_cli --usrp [--args addr=192.168.10.2] [--rate 5e6] [--gain 30] [--seconds N] [--record dir]\n";
         return 1;
     }
     Receiver rx;
     QObject::connect(&rx, &Receiver::logMessage, [](const QString& t) { out() << t << "\n"; out().flush(); });
+    const bool usrp = args.contains("--usrp");
     QString err;
-    if (!rx.openFile(args[1], &err)) {
+    if (!usrp && !rx.openFile(args[1], &err)) {
         out() << err << "\n";
         return 2;
     }
     QString csv;
-    for (int i = 2; i + 1 < args.size(); ++i) {
-        if (args[i] == "--ms") rx.settings.msToProcess = args[++i].toInt();
+    bool live = usrp;
+    int seconds = 0;
+    LiveSettings& ls = rx.settings.live;
+    ls.source = usrp ? LiveSourceKind::Usrp : LiveSourceKind::Replay;
+    for (int i = 1; i < args.size(); ++i) {
+        const bool more = i + 1 < args.size();
+        if (args[i] == "--live") live = true;
+        else if (!more) break;
+        else if (args[i] == "--ms") rx.settings.msToProcess = args[++i].toInt();
         else if (args[i] == "--channels") rx.settings.numChannels = args[++i].toInt();
         else if (args[i] == "--fs") rx.settings.samplingFreq = args[++i].toDouble();
         else if (args[i] == "--if") rx.settings.ifFreq = args[++i].toDouble();
@@ -48,7 +134,23 @@ int main(int argc, char** argv)
                                          : g == "gal" ? Constellations::GalileoOnly : Constellations::GpsGalileo;
         }
         else if (args[i] == "--csv") csv = args[++i];
+        else if (args[i] == "--speed") ls.replaySpeed = args[++i].toDouble();
+        else if (args[i] == "--seconds") seconds = args[++i].toInt();
+        else if (args[i] == "--update-ms") ls.updateMs = args[++i].toInt();
+        else if (args[i] == "--window") ls.windowSeconds = args[++i].toInt();
+        else if (args[i] == "--acq-interval") ls.acqIntervalSec = args[++i].toInt();
+        else if (args[i] == "--args") ls.deviceArgs = args[++i];
+        else if (args[i] == "--rate") ls.sampleRate = args[++i].toDouble();
+        else if (args[i] == "--center") ls.centerFreq = args[++i].toDouble();
+        else if (args[i] == "--gain") ls.gainDb = args[++i].toDouble();
+        else if (args[i] == "--antenna") ls.antenna = args[++i];
+        else if (args[i] == "--subdev") ls.subdev = args[++i];
+        else if (args[i] == "--clock") ls.clockSource = args[++i];
+        else if (args[i] == "--lo-offset") ls.loOffset = args[++i].toDouble();
+        else if (args[i] == "--uhd") ls.uhdLibrary = args[++i];
+        else if (args[i] == "--record") { ls.record = true; ls.recordDir = args[++i]; }
     }
+    if (live) return runLive(rx, seconds, csv);
 
     if (!rx.runAcquisition()) return 3;
     out() << "\n PRN  metric   code(samp)  Doppler(Hz)  fine-coarse  C/N0\n";
@@ -99,19 +201,7 @@ int main(int argc, char** argv)
             out() << QString::asprintf("If %d week rollovers: %s (GPS time)\n", k, qPrintable(dt.toString(Qt::ISODate)));
         }
     }
-    if (!csv.isEmpty()) {
-        QFile f(csv);
-        if (f.open(QIODevice::WriteOnly | QIODevice::Text)) {
-            QTextStream ts(&f);
-            ts << "epoch,gpsTow,nSat,lat,lon,h,x,y,z,bias,pdop,hdop,vdop,ve,vn,vu\n";
-            for (const auto& s : p.sols)
-                if (s.valid)
-                    ts << QString::asprintf("%d,%.4f,%d,%.9f,%.9f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f\n",
-                                            s.index, s.gpsTime, s.nUsed, s.llh.lat * 180 / kPi, s.llh.lon * 180 / kPi,
-                                            s.llh.h, s.pos.x, s.pos.y, s.pos.z, s.bias, s.pdop, s.hdop, s.vdop,
-                                            s.velEnu.x, s.velEnu.y, s.velEnu.z);
-        }
-    }
+    writeCsv(csv, p);
     out().flush();
     return 0;
 }

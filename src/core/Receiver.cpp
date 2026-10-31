@@ -1,5 +1,6 @@
 #include "Receiver.h"
 #include "Constants.h"
+#include "LiveEngine.h"
 
 #include <QElapsedTimer>
 #include <QFileInfo>
@@ -21,6 +22,7 @@ void Receiver::log(const QString& t)
 bool Receiver::openFile(const QString& path, QString* error)
 {
     resetResults();
+    liveDescription.clear();
     double fs = settings.samplingFreq, fif = settings.ifFreq;
     SampleFormat fmt = settings.format;
     const bool parsed = ReceiverSettings::parseFileName(path, &fs, &fif, &fmt);
@@ -60,6 +62,27 @@ void Receiver::resetResults()
     pvt = PvtOutput();
     stage_ = StageNone;
     for (double& t : stageTime_) t = 0;
+}
+
+void Receiver::closeFile()
+{
+    resetResults();
+    source.close();
+    liveDescription.clear();
+    settings.fileName.clear();
+}
+
+void Receiver::applyLiveSnapshot(LiveSnapshot&& snap)
+{
+    settings.samplingFreq = snap.samplingFreq;
+    settings.ifFreq = snap.ifFreq;
+    settings.format = source.format();
+    if (snap.hasAcq) acq = std::move(snap.acq);
+    trk = std::move(snap.trk);
+    nav = std::move(snap.nav);
+    gnav = std::move(snap.gnav);
+    pvt = std::move(snap.pvt);
+    stage_ = snap.stage;
 }
 
 double Receiver::fileDurationSec() const
@@ -155,6 +178,9 @@ bool Receiver::runTracking()
         log(QStringLiteral("  Ch %1 %2: %3 ms, mean C/N0 %4 dB-Hz, phase lock %5 %, final Doppler %6 Hz, %7 s")
                 .arg(ch.channel).arg(satName(ch.prn)).arg(ch.numMs * ch.periodMs).arg(ch.meanCn0, 0, 'f', 1)
                 .arg(ch.lockFraction * 100, 0, 'f', 1).arg(ch.finalDoppler, 0, 'f', 1).arg(ch.elapsedSec, 0, 'f', 1));
+    for (const auto& ch : trk)
+        if (ch.sidePeakJumps > 0)
+            log(QStringLiteral("  Ch %1 %2: moved off a BOC side peak %3 time(s)").arg(ch.channel).arg(satName(ch.prn)).arg(ch.sidePeakJumps));
     stage_ = StageTracked;
     stageTime_[StageTracked] = t.elapsed() / 1000.0;
     log(QStringLiteral("Tracking finished in %1 s").arg(stageTime_[StageTracked], 0, 'f', 1));

@@ -32,7 +32,14 @@ void RawSignalPage::refresh()
     if (!rx_ || !rx_->source.isOpen()) return;
     ui->startSpin->setMaximum(rx_->fileDurationSec() * 1000.0);
     if (lastFile_ != rx_->settings.fileName) { done_ = false; lastFile_ = rx_->settings.fileName; }
-    if (!done_ && isVisible()) analyse();
+    if ((!done_ || liveMode()) && isVisible()) analyse();
+}
+
+void RawSignalPage::clearContents()
+{
+    PageBase::clearContents();
+    done_ = false;
+    lastFile_.clear();
 }
 
 void RawSignalPage::showEvent(QShowEvent* e)
@@ -44,12 +51,14 @@ void RawSignalPage::showEvent(QShowEvent* e)
 void RawSignalPage::analyse()
 {
     if (!rx_ || !rx_->source.isOpen()) return;
-    QApplication::setOverrideCursor(Qt::WaitCursor);
+    const bool wait = !liveMode();
+    if (wait) QApplication::setOverrideCursor(Qt::WaitCursor);
     done_ = true;
     const ReceiverSettings& s = rx_->settings;
     const double fs = s.samplingFreq;
-    const qint64 start = qint64(ui->startSpin->value() * fs / 1000.0);
+    qint64 start = qint64(ui->startSpin->value() * fs / 1000.0);
     const qint64 count = qint64(ui->lengthSpin->value() * fs / 1000.0);
+    if (liveMode()) start = std::max(rx_->source.oldestSample(), rx_->source.numSamples() - count);   // the newest samples
     PlotWidget* tp = ui->timePlot;
     PlotWidget* hp = ui->histPlot;
     PlotWidget* pp = ui->psdPlot;
@@ -73,8 +82,9 @@ void RawSignalPage::analyse()
     hp->clear();
     hp->addSeries(tr("measured"), hx, hy, PlotWidget::Bars, QColor(44, 160, 44));
     QVector<double> gx, gy;
+    const double gaussStep = std::max(0.05, (st.maxV - st.minV) / 400.0);
     if (st.stddev > 0)
-        for (double x = st.minV - 1; x <= st.maxV + 1; x += 0.05) {
+        for (double x = st.minV - 1; x <= st.maxV + 1; x += gaussStep) {
             gx << x;
             gy << std::exp(-0.5 * std::pow((x - st.mean) / st.stddev, 2)) / (st.stddev * std::sqrt(2 * kPi));
         }
@@ -144,7 +154,7 @@ void RawSignalPage::analyse()
     ui->specPlot->clear();
     ui->specPlot->setHeatmap(QVector<float>(sg.db.begin(), sg.db.end()), sg.nf, sg.nt, sg.f0 / 1e6, sg.f1 / 1e6, sg.t0, sg.t1, tr("dB"));
     ui->specPlot->setTitle(tr("Spectrogram (%1 - %2 s)").arg(sg.t0, 0, 'f', 3).arg(sg.t1, 0, 'f', 3));
-    QApplication::restoreOverrideCursor();
+    if (wait) QApplication::restoreOverrideCursor();
 }
 
 void RawSignalPage::analyseSpectrogram()
@@ -152,7 +162,8 @@ void RawSignalPage::analyseSpectrogram()
     if (!rx_ || !rx_->source.isOpen()) return;
     QApplication::setOverrideCursor(Qt::WaitCursor);
     const double fs = rx_->settings.samplingFreq;
-    const Spectrogram sg = analysis::spectrogram(rx_->source, fs, 0, rx_->source.numSamples(), 2048, ui->slicesSpin->value(), 8);
+    const qint64 first = rx_->source.oldestSample();
+    const Spectrogram sg = analysis::spectrogram(rx_->source, fs, first, rx_->source.numSamples() - first, 2048, ui->slicesSpin->value(), 8);
     ui->specPlot->clear();
     ui->specPlot->setHeatmap(QVector<float>(sg.db.begin(), sg.db.end()), sg.nf, sg.nt, sg.f0 / 1e6, sg.f1 / 1e6, sg.t0, sg.t1, tr("dB"));
     ui->specPlot->setTitle(tr("Spectrogram of the whole recording"));

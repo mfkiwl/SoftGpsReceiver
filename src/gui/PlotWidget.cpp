@@ -31,7 +31,14 @@ inline double clampPx(double v) { return std::clamp(v, -1.0e6, 1.0e6); }
 
 QString num(double v) { return QString::number(v, 'g', 9); }
 
+bool g_keepUserView = false;
+
 } // namespace
+
+void PlotWidget::setKeepUserView(bool on)
+{
+    g_keepUserView = on;
+}
 
 PlotWidget::PlotWidget(QWidget* parent) : QWidget(parent)
 {
@@ -47,10 +54,21 @@ void PlotWidget::clear()
     circles_.clear();
     texts_.clear();
     spans_.clear();
-    hz_.clear();
+    hz_ = QVector<float>();    // a clear() keeps the memory
     hnx_ = hny_ = 0;
+    if (g_keepUserView && userView_) {
+        update();
+        return;
+    }
+    userView_ = false;
     hasView_ = false;
     update();
+}
+
+bool PlotWidget::isEmpty() const
+{
+    return hz_.isEmpty() && lines_.empty() && circles_.empty() && texts_.empty() && spans_.empty()
+           && std::all_of(series_.begin(), series_.end(), [](const Series& s) { return s.x.isEmpty(); });
 }
 
 int PlotWidget::addSeries(const QString& name, const QVector<double>& x, const QVector<double>& y, Style style,
@@ -145,6 +163,10 @@ void PlotWidget::dataBounds(double& x0, double& x1, double& y0, double& y1) cons
 
 void PlotWidget::autoScale()
 {
+    if (g_keepUserView && userView_) {
+        update();
+        return;
+    }
     double x0, x1, y0, y1;
     dataBounds(x0, x1, y0, y1);
     const bool heatOnly = !hz_.isEmpty() && series_.empty();
@@ -181,6 +203,7 @@ void PlotWidget::setView(double x0, double x1, double y0, double y1)
 void PlotWidget::setXView(double x0, double x1)
 {
     if (!(x1 > x0)) return;
+    userView_ = true;
     vx0_ = x0;
     vx1_ = x1;
     update();
@@ -460,7 +483,7 @@ void PlotWidget::drawAxes(QPainter& p, const QRect& r) const
         if (grid_) { p.setPen(QPen(gridC, 1, Qt::DotLine)); p.drawLine(QPointF(px, r.top()), QPointF(px, r.bottom())); }
         p.setPen(text);
         p.drawLine(QPointF(px, r.bottom()), QPointF(px, r.bottom() + 4));
-        const QString lab = tickLabel(x, xs);
+        const QString lab = xTickText_ ? xTickText_(x) : tickLabel(x, xs);
         const int w = fm.horizontalAdvance(lab);
         p.drawText(QPointF(px - w / 2.0, r.bottom() + 5 + fm.ascent()), lab);
     }
@@ -559,7 +582,7 @@ QString PlotWidget::hoverText(const QPointF& pos) const
         }
     }
     if (bs) t += QStringLiteral("\n%1:  x = %2   y = %3").arg(bs->name.isEmpty() ? QStringLiteral("point") : bs->name,
-                                                            num(bs->x[bi]), num(bs->y[bi]));
+                                                            xTickText_ ? xTickText_(bs->x[bi]) : num(bs->x[bi]), num(bs->y[bi]));
     return t;
 }
 
@@ -662,6 +685,7 @@ void PlotWidget::mouseMoveEvent(QMouseEvent* e)
         const double dy = d.y() * (vy1_ - vy0_) / r.height();
         vx0_ += dx; vx1_ += dx; vy0_ += dy; vy1_ += dy;
         lastPos_ = e->pos();
+        userView_ = true;
         emit xViewChanged(vx0_, vx1_);
     } else if (drag_ == Zoom) {
         lastPos_ = e->pos();
@@ -674,6 +698,7 @@ void PlotWidget::mouseReleaseEvent(QMouseEvent* e)
     if (drag_ == Zoom && e->button() == Qt::LeftButton) {
         const QRect sel = QRect(pressPos_, e->pos()).normalized();
         drag_ = None;
+        if (sel.width() > 5) userView_ = true;
         if (sel.width() > 5 && sel.height() > 5) {
             const QPointF a = toData(sel.topLeft()), b = toData(sel.bottomRight());
             vx0_ = a.x(); vx1_ = b.x(); vy0_ = b.y(); vy1_ = a.y();
@@ -701,6 +726,7 @@ void PlotWidget::mouseReleaseEvent(QMouseEvent* e)
 
 void PlotWidget::mouseDoubleClickEvent(QMouseEvent*)
 {
+    userView_ = false;
     autoScale();
     emit xViewChanged(vx0_, vx1_);
 }
@@ -715,6 +741,7 @@ void PlotWidget::wheelEvent(QWheelEvent* e)
     const bool zy = !(e->modifiers() & Qt::ControlModifier);
     if (zx) { vx0_ = c.x() + (vx0_ - c.x()) * f; vx1_ = c.x() + (vx1_ - c.x()) * f; }
     if (zy) { vy0_ = c.y() + (vy0_ - c.y()) * f; vy1_ = c.y() + (vy1_ - c.y()) * f; }
+    userView_ = true;
     applyAspect();
     emit xViewChanged(vx0_, vx1_);
     update();
@@ -730,7 +757,7 @@ void PlotWidget::leaveEvent(QEvent*)
 void PlotWidget::showMenu(const QPoint& global)
 {
     QMenu m(this);
-    m.addAction(tr("Reset view (double-click)"), this, [this] { autoScale(); emit xViewChanged(vx0_, vx1_); });
+    m.addAction(tr("Reset view (double-click)"), this, [this] { userView_ = false; autoScale(); emit xViewChanged(vx0_, vx1_); });
     QAction* lg = m.addAction(tr("Show legend"), this, [this](bool on) { legend_ = on; update(); });
     lg->setCheckable(true);
     lg->setChecked(legend_);

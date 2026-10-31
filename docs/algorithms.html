@@ -134,6 +134,11 @@ correlator takes the E1-B prompt for the data symbols. The early/late spacing is
 <code>(1 - 3d) / 3</code>, because the peak falls as <code>1 - 3|t|</code>. Code Doppler reaches about 2 chips/s, more than
 a narrow DLL can follow on such a narrow peak, so the code NCO is always aided by the carrier from the first epoch. C/N0
 is measured on the pilot and reported for the whole signal, 3 dB higher.</p>
+<p>The BOC(1,1) correlation also has smaller peaks half a chip either side of the true one, and the discriminator holds on
+those too. A side peak is steeper towards the centre, so the loop settles <code>0.5 + d/2</code> chips off, or 169 m at this
+spacing, while everything else about the channel looks healthy. Two more correlators watch half a chip either side of
+prompt ("bump jumping"). On the true peak they stay well below it. On a side peak the one nearer the true peak beats it,
+and when that lasts for 120 ms the code phase jumps half a chip across.</p>
 
 <h3>I/NAV message</h3>
 <p>The symbol rate equals the code rate, so there is no bit synchronisation. Pages are found by the 10-symbol pattern
@@ -165,6 +170,24 @@ therefore lock 125 Hz away and stop decoding, although a loop using the secondar
 needs the IF Doppler sign set by hand in the settings.</li>
 <li>Galileo almanac words are recognised but not decoded.</li>
 </ul>
+
+<h2>8. Live mode</h2>
+<p>Live mode runs the same algorithms on samples as they arrive, with the work divided between threads:</p>
+<ul>
+<li><b>Input:</b> receives samples into a ring buffer, keeping each at the index that matches its time stamp. Samples lost
+on the network become zeros, so later ones stay in place and the tracking loops hold their NCOs across the gap.</li>
+<li><b>Acquisition:</b> repeatedly searches for satellites without a channel. GPS goes first, because it takes a fraction of
+a second and its Doppler gives the much longer Galileo search the receiver clock offset.</li>
+<li><b>Pipeline:</b> advances every channel to the newest sample. Once per update it decodes a rolling window of tracking data
+and adds the new epochs to the position solution, then hands the display a snapshot that shares nothing with the running
+receiver.</li>
+</ul>
+<p>A channel ends when its phase lock is gone for 3 s, or when it has produced no data passing parity or CRC for 25 s (a false
+lock). Its satellite is searched for again at once. Its orbit is remembered, so a satellite that returns needs only one
+verified subframe rather than a whole frame. A measurement counts only while the mean phase lock indicator over the last
+0.5 s stays above 0.12: the C/N<sub>0</sub> estimate alone stays high on pure noise for several seconds.</p>
+<p>The solver keeps the receiver clock continuous across updates. Unlike the batch solver it needs no interval common to all
+channels, so a satellite joining or leaving does not disturb earlier fixes.</p>
 
 <h2>References</h2>
 <ul>

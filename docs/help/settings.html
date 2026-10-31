@@ -1,0 +1,20 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<title>Settings for live mode</title><link rel="stylesheet" href="help.css"></head><body>
+<h1>Settings for live mode</h1>
+<p>All of these are in <i>Settings &gt; Live</i>.</p>
+<table><tr><th>Setting</th><th>N200 value</th><th>Meaning</th></tr>
+<tr><td>Live source</td><td>USRP</td><td>Or replay of the open recording</td></tr>
+<tr><td>Device address</td><td>addr=192.168.10.2</td><td>UHD device arguments. <code>recv_buff_size=50000000</code> can be added against overflows.</td></tr>
+<tr><td>Centre frequency</td><td>1575.42 MHz</td><td>GPS L1 / Galileo E1</td></tr>
+<tr><td>Sample rate</td><td>5 MS/s</td><td>The program uses the rate the radio reports</td></tr>
+<tr><td>Gain</td><td>30 dB to start</td><td>Adjust using Signal level on the Live tab</td></tr>
+<tr><td>Antenna port</td><td>RX2</td><td>The connector in use</td></tr>
+<tr><td>Subdevice</td><td>A:0 (usually)</td><td>Daughterboard channel</td></tr>
+<tr><td>Clock source</td><td>internal</td><td>external for a 10 MHz reference, gpsdo if fitted</td></tr>
+</table>
+<h2>Setting the gain</h2>
+<p>Watch <b>Signal level</b> on the Live tab. It warns "gain too high" above -12 dBFS or with clipping over 0.5 %, and "gain low" below -65 dBFS. Aim between those, then choose the setting that gives the best C/N0.</p>
+<p>Tick <b>Record the samples to disk</b> to keep a session for later (about 20 MB/s at 5 MS/s).</p>
+</body></html>

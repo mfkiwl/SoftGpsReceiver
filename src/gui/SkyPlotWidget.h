@@ -8,7 +8,7 @@
 
 namespace gui {
 
-// Polar azimuth/elevation plot of satellite positions.
+// Polar azimuth/elevation plot of satellite positions: circles for GPS, squares for Galileo.
 class SkyPlotWidget : public QWidget
 {
     Q_OBJECT
@@ -31,6 +31,7 @@ public:
 
     explicit SkyPlotWidget(QWidget* parent = nullptr);
     void setData(const QVector<Sat>& sats, const QVector<Track>& tracks);
+    const QVector<Sat>& satellites() const { return sats_; }
     void setElevationMask(double deg) { mask_ = deg; update(); }
     QString title() const { return title_; }
     void setTitle(const QString& t) { title_ = t; update(); }

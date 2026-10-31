@@ -26,7 +26,7 @@ OverviewPage::OverviewPage(QWidget* parent) : PageBase(parent), ui(new Ui::Overv
             l->setTextInteractionFlags(Qt::TextSelectableByMouse);
         }
     ui->pipelineTable->setColumns({tr("Stage"), tr("Status"), tr("Time (s)"), tr("Result")});
-    ui->satellitesTable->setColumns({tr("PRN"), tr("Channel"), tr("Acq metric"), tr("Acq C/N0"), tr("Doppler (Hz)"),
+    ui->satellitesTable->setColumns({tr("PRN"), tr("System"), tr("Channel"), tr("Acq metric"), tr("Acq C/N0"), tr("Doppler (Hz)"),
                                      tr("Code phase (chips)"), tr("Track C/N0"), tr("Phase lock %"), tr("Bit sync"),
                                      tr("Subframes OK"), tr("Words parity OK"), tr("Ephemeris"), tr("SV health"), tr("URA"),
                                      tr("Elevation"), tr("Azimuth"), tr("Used in fix")});
@@ -61,17 +61,23 @@ void OverviewPage::refresh()
     if (!rx_) return;
     const ReceiverSettings& s = rx_->settings;
     const bool open = rx_->source.isOpen();
-    ui->fileValue->setText(open ? QDir::toNativeSeparators(s.fileName) : tr("(no file open - use File > Open)"));
-    ui->sizeValue->setText(open ? tr("%1 bytes (%2 MB), %3 samples").arg(rx_->source.fileSize())
-                                      .arg(rx_->source.fileSize() / 1048576.0, 0, 'f', 1).arg(rx_->source.numSamples())
-                                : QStringLiteral("-"));
-    ui->formatValue->setText(sampleFormatName(s.format));
-    ui->fsValue->setText(tr("%1 MHz").arg(s.samplingFreq / 1e6, 0, 'f', 6));
-    ui->ifValue->setText(tr("%1 MHz").arg(s.ifFreq / 1e6, 0, 'f', 6));
-    ui->durationValue->setText(tr("%1 s").arg(rx_->fileDurationSec(), 0, 'f', 3));
-    ui->spmsValue->setText(tr("%1 (exact %2)").arg(s.samplesPerCode()).arg(s.samplingFreq / 1000.0, 0, 'f', 3));
-    ui->spcValue->setText(QString::number(s.samplingFreq / kCaChipRate, 'f', 4));
-    {
+    const bool stream = !rx_->liveDescription.isEmpty();
+    ui->fileValue->setText(stream ? rx_->liveDescription
+                                  : open ? QDir::toNativeSeparators(s.fileName) : tr("(no file open - use File > Open)"));
+    ui->sizeValue->setText(rx_->source.isLive() ? tr("%1 samples so far").arg(rx_->source.numSamples())
+                           : open ? tr("%1 bytes (%2 MB), %3 samples").arg(rx_->source.fileSize())
+                                        .arg(rx_->source.fileSize() / 1048576.0, 0, 'f', 1).arg(rx_->source.numSamples())
+                                  : QStringLiteral("-"));
+    if (!open) {
+        for (QLabel* l : {ui->formatValue, ui->fsValue, ui->ifValue, ui->durationValue, ui->spmsValue, ui->spcValue, ui->ifPlacementValue})
+            l->setText(QStringLiteral("-"));
+    } else {
+        ui->formatValue->setText(sampleFormatName(s.format));
+        ui->fsValue->setText(tr("%1 MHz").arg(s.samplingFreq / 1e6, 0, 'f', 6));
+        ui->ifValue->setText(tr("%1 MHz").arg(s.ifFreq / 1e6, 0, 'f', 6));
+        ui->durationValue->setText(tr("%1 s").arg(rx_->fileDurationSec(), 0, 'f', 3));
+        ui->spmsValue->setText(tr("%1 (exact %2)").arg(s.samplesPerCode()).arg(s.samplingFreq / 1000.0, 0, 'f', 3));
+        ui->spcValue->setText(QString::number(s.samplingFreq / kCaChipRate, 'f', 4));
         const double ratio = s.ifFreq / s.samplingFreq;
         QString note = tr("IF/fs = %1").arg(ratio, 0, 'f', 5);
         if (std::fabs(ratio - 0.25) < 0.001) note += tr(" (close to fs/4 = %1 MHz)").arg(s.samplingFreq / 4e6, 0, 'f', 6);
@@ -94,9 +100,10 @@ void OverviewPage::refresh()
         pt->setNum(i, 2, done ? rx_->stageSeconds(rows[i].stage) : NAN, 2);
         QString res;
         if (done && rows[i].stage == Receiver::StageAcquired) {
-            int n = 0;
-            for (const auto& r : rx_->acq.results) n += r.acquired ? 1 : 0;
-            res = tr("%1 of %2 satellites acquired").arg(n).arg(rx_->acq.results.size());
+            int gps = 0, galileo = 0;
+            for (const auto& r : rx_->acq.results)
+                if (r.acquired) ++(isGalileo(r.prn) ? galileo : gps);
+            res = tr("%1 GPS and %2 Galileo satellites acquired, of %3 searched").arg(gps).arg(galileo).arg(rx_->acq.results.size());
         } else if (done && rows[i].stage == Receiver::StageTracked) {
             res = tr("%1 channels tracked").arg(rx_->trk.size());
         } else if (done && rows[i].stage == Receiver::StageDecoded) {
@@ -131,40 +138,41 @@ void OverviewPage::refresh()
         const AcqResult& a = *list[size_t(i)];
         t->setText(i, 0, satLabel(a.prn));
         t->setKey(i, a.prn);
-        t->setNum(i, 2, a.metric, 2);
-        t->setNum(i, 3, a.cn0, 1);
-        t->setNum(i, 4, a.doppler, 1);
-        t->setNum(i, 5, a.codePhaseChips, 2);
+        t->setText(i, 1, satSystem(a.prn));
+        t->setNum(i, 3, a.metric, 2);
+        t->setNum(i, 4, a.cn0, 1);
+        t->setNum(i, 5, a.doppler, 1);
+        t->setNum(i, 6, a.codePhaseChips, 2);
         const int ch = st >= Receiver::StageTracked ? rx_->channelOfPrn(a.prn) : -1;
-        t->setText(i, 1, ch >= 0 ? QString::number(ch) : (st >= Receiver::StageTracked ? tr("no free channel") : QString()));
+        t->setText(i, 2, ch >= 0 ? QString::number(ch) : (st >= Receiver::StageTracked ? tr("no free channel") : QString()));
         if (ch < 0) continue;
         const TrackingChannel& tc = rx_->trk[size_t(ch)];
-        t->setNum(i, 6, tc.meanCn0, 1, tc.meanCn0 > 35 ? goodColor() : warnColor());
-        t->setNum(i, 7, tc.lockFraction * 100, 1, tc.lockFraction > 0.9 ? goodColor() : badColor());
+        t->setNum(i, 7, tc.meanCn0, 1, tc.meanCn0 > 35 ? goodColor() : warnColor());
+        t->setNum(i, 8, tc.lockFraction * 100, 1, tc.lockFraction > 0.9 ? goodColor() : badColor());
         if (st < Receiver::StageDecoded || ch >= int(rx_->nav.size())) continue;
         const NavChannel& n = rx_->nav[size_t(ch)];
         const bool gal = isGalileo(n.prn);
-        t->setText(i, 8, n.bitSyncOk ? (gal ? tr("page sync ok") : tr("ok (%1 ms)").arg(n.bitOffset)) : tr("failed"), n.bitSyncOk ? goodColor() : badColor());
+        t->setText(i, 9, n.bitSyncOk ? (gal ? tr("page sync ok") : tr("ok (%1 ms)").arg(n.bitOffset)) : tr("failed"), n.bitSyncOk ? goodColor() : badColor());
         int ok = 0;
         for (const auto& sf : n.subframes) ok += sf.allParityOk() ? 1 : 0;
-        t->setText(i, 9, gal ? QStringLiteral("-") : QStringLiteral("%1 / %2").arg(ok).arg(n.subframes.size()));
-        t->setText(i, 10, QStringLiteral("%1 / %2").arg(n.parityOkWords).arg(n.parityTotalWords),
+        t->setText(i, 10, gal ? QStringLiteral("-") : QStringLiteral("%1 / %2").arg(ok).arg(n.subframes.size()));
+        t->setText(i, 11, QStringLiteral("%1 / %2").arg(n.parityOkWords).arg(n.parityTotalWords),
                    n.parityOkWords == n.parityTotalWords && n.parityTotalWords > 0 ? goodColor() : warnColor());
-        t->setText(i, 11, n.eph.complete() ? (n.eph.consistent() ? tr("complete") : tr("IODE mismatch")) : tr("incomplete"),
+        t->setText(i, 12, n.eph.complete() ? (n.eph.consistent() ? tr("complete") : tr("IODE mismatch")) : tr("incomplete"),
                    n.eph.complete() ? goodColor() : badColor());
         if (n.eph.sf1) {
-            t->setText(i, 12, QString::number(n.eph.svHealth), n.eph.svHealth == 0 ? goodColor() : badColor(),
+            t->setText(i, 13, QString::number(n.eph.svHealth), n.eph.svHealth == 0 ? goodColor() : badColor(),
                        gal ? QString() : nav::health6Text(n.eph.svHealth));
-            t->setText(i, 13, gal ? tr("SISA %1").arg(n.eph.uraIndex) : nav::uraText(n.eph.uraIndex));
+            t->setText(i, 14, gal ? tr("SISA %1").arg(n.eph.uraIndex) : nav::uraText(n.eph.uraIndex));
         }
         if (lastSol)
             for (const auto& o : lastSol->obs) {
                 if (o.prn != a.prn) continue;
                 if (o.geomRange > 0) {
-                    t->setNum(i, 14, o.el * 180.0 / kPi, 1);
-                    t->setNum(i, 15, o.az * 180.0 / kPi, 1);
+                    t->setNum(i, 15, o.el * 180.0 / kPi, 1);
+                    t->setNum(i, 16, o.az * 180.0 / kPi, 1);
                 }
-                t->setText(i, 16, o.used ? tr("yes") : o.status, o.used ? goodColor() : warnColor());
+                t->setText(i, 17, o.used ? tr("yes") : o.status, o.used ? goodColor() : warnColor());
             }
     }
     t->endFill();

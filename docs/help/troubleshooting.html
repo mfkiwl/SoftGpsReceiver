@@ -1,0 +1,16 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<title>Troubleshooting</title><link rel="stylesheet" href="help.css"></head><body>
+<h1>Troubleshooting</h1>
+<table><tr><th>Symptom</th><th>Check</th></tr>
+<tr><td>UHD driver not found</td><td>Install UHD, or set the uhd.dll path in Settings &gt; Live.</td></tr>
+<tr><td>No devices found</td><td>Cable, the PC port's static address, firewall, and <code>uhd_find_devices</code>.</td></tr>
+<tr><td>Radio found, no satellites</td><td>Antenna power, sky view, RX2 selected, daughterboard covers L1, gain.</td></tr>
+<tr><td>Signal level barely changes when the antenna is unplugged</td><td>The antenna is probably unpowered, or the bias tee ports are swapped.</td></tr>
+<tr><td>Overflows</td><td>Lower the sample rate, add <code>recv_buff_size=50000000</code>, use a dedicated network port.</td></tr>
+<tr><td>Low C/N0 on every satellite</td><td>Move the antenna outside, shorten the cable, reduce gain if clipping, look for nearby interference.</td></tr>
+<tr><td>Satellites but no position</td><td>Wait up to a minute, and keep at least four tracked.</td></tr>
+<tr><td>No Galileo</td><td>Sample rate must be at least 4 MS/s, with GPS + Galileo selected.</td></tr>
+</table>
+</body></html>

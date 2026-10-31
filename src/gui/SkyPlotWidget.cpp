@@ -92,19 +92,33 @@ void SkyPlotWidget::paintEvent(QPaintEvent*)
         p.setPen(QPen(t.color, 2));
         p.drawPolyline(poly);
     }
+    int gps = 0, galileo = 0;
     for (const Sat& s : sats_) {
         if (s.el < -5) continue;
         const QPointF q = project(s.az, s.el);
+        const bool gal = gnss::isGalileo(s.prn);
+        if (s.filled) ++(gal ? galileo : gps);
         p.setPen(QPen(s.color.darker(150), 1.5));
         p.setBrush(s.filled ? s.color : palette().color(QPalette::Base));
-        p.drawEllipse(q, 10, 10);
+        if (gal) p.drawRoundedRect(QRectF(q.x() - 12, q.y() - 10, 24, 20), 3, 3);
+        else p.drawEllipse(q, 10, 10);
         p.setPen(s.filled ? Qt::white : text);
         QFont f = font();
         f.setBold(true);
         f.setPointSizeF(font().pointSizeF() * 0.85);
         p.setFont(f);
-        p.drawText(QRectF(q.x() - 10, q.y() - 10, 20, 20), Qt::AlignCenter, satLabel(s.prn));
+        p.drawText(QRectF(q.x() - 12, q.y() - 10, 24, 20), Qt::AlignCenter, satLabel(s.prn));
         p.setFont(font());
+    }
+    if (!sats_.isEmpty()) {
+        const int lh = fm.height() + 4;
+        const QPointF a(12, height() - 2 * lh), b(12, height() - lh);
+        p.setPen(QPen(text, 1));
+        p.setBrush(Qt::NoBrush);
+        p.drawEllipse(a, 5, 5);
+        p.drawRoundedRect(QRectF(b.x() - 6, b.y() - 5, 12, 10), 2, 2);
+        p.drawText(QPointF(24, a.y() + fm.ascent() / 2.0 - 1), tr("GPS: %1").arg(gps));
+        p.drawText(QPointF(24, b.y() + fm.ascent() / 2.0 - 1), tr("Galileo: %1").arg(galileo));
     }
     if (!title_.isEmpty()) {
         QFont f = font();
@@ -121,7 +135,7 @@ void SkyPlotWidget::mouseMoveEvent(QMouseEvent* e)
     if (i >= 0) {
         const Sat& s = sats_[i];
         QToolTip::showText(e->globalPosition().toPoint(),
-                           QStringLiteral("%1\naz %2°  el %3°\n%4").arg(gnss::satName(s.prn)).arg(s.az, 0, 'f', 1)
+                           QStringLiteral("%1\naz %2°  el %3°\n%4").arg(satFullName(s.prn)).arg(s.az, 0, 'f', 1)
                                .arg(s.el, 0, 'f', 1).arg(s.tip), this);
     } else {
         QToolTip::hideText();

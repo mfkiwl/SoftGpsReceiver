@@ -1,0 +1,25 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<title>SDR options</title><link rel="stylesheet" href="help.css"></head><body>
+<h1>SDR options</h1>
+<p>The program streams directly only from radios supported by the <b>Ettus UHD driver</b>. Other radios can be used by recording to a file with their own tools and processing it afterwards; live streaming from them would need a new input added to the program.</p>
+<h2>Live streaming (UHD)</h2>
+<table><tr><th>Radio</th><th>Link</th><th>Notes</th></tr>
+<tr><td>USRP N200 / N210</td><td>Gigabit Ethernet</td><td>Needs a daughterboard covering 1575.42 MHz: DBSRX2, WBX, SBX or UBX. The rate is 100 MHz divided by an integer. This is the radio the live mode was written for.</td></tr>
+<tr><td>USRP B200 / B210 / B205mini</td><td>USB 3</td><td>Should work through UHD; set the device address (for example <code>type=b200</code>). Use a bias tee unless you have confirmed antenna power.</td></tr>
+<tr><td>USRP X300 / X310</td><td>Ethernet</td><td>Should work through UHD with a suitable daughterboard. More capable than this job needs.</td></tr>
+</table>
+<p>The code has been checked against the real UHD 4.11 driver, but <b>has not yet been run with any real radio</b>.</p>
+<h2>Record, then process</h2>
+<p>Capture with the radio's own software at L1 (1575.42 MHz), then use <i>File &gt; Open</i>. The file name gives the rate, IF and format, for example <code>capture-fs4-if0-int8iq.bin</code> for 4 MS/s centred on L1.</p>
+<table><tr><th>Radio</th><th>Typical sample format</th><th>Notes</th></tr>
+<tr><td>HackRF One</td><td>int8 I/Q</td><td>Can power an antenna. 8 bits, so set gain with care.</td></tr>
+<tr><td>bladeRF</td><td>int16 I/Q</td><td>Use a name containing <code>int16iq</code>.</td></tr>
+<tr><td>LimeSDR, ADALM-Pluto</td><td>int16 I/Q</td><td>Depends on the capture tool. Check the clock stability of your model.</td></tr>
+<tr><td>RTL-SDR</td><td>unsigned 8-bit I/Q</td><td>Cheap, about 2 to 2.4 MS/s, so GPS only. This format is not read directly: convert to int8 I/Q by subtracting 128 from each byte. Some models can power an antenna.</td></tr>
+</table>
+<p>Check each radio's current specification before buying; capture formats depend on the tool used.</p>
+<h2>Sample rate</h2>
+<p>GPS works from 2 MS/s. Galileo needs at least 4 MS/s. The default of 5 MS/s suits both.</p>
+</body></html>

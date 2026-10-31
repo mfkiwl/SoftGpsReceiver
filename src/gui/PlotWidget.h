@@ -7,6 +7,8 @@
 #include <QVector>
 #include <QWidget>
 
+#include <functional>
+
 namespace gui {
 
 // Lightweight, fast 2-D plotting widget.
@@ -44,6 +46,7 @@ public:
     explicit PlotWidget(QWidget* parent = nullptr);
 
     void clear();
+    bool isEmpty() const;      // nothing to draw
     int addSeries(const QString& name, const QVector<double>& x, const QVector<double>& y,
                   Style style = Lines, const QColor& color = QColor(), double width = 1.2);
     Series& series(int i) { return series_[i]; }
@@ -73,8 +76,12 @@ public:
     void setFixedYRange(double a, double b) { fixY_ = true; fy0_ = a; fy1_ = b; }
     void clearFixedRanges() { fixX_ = fixY_ = false; }
     void setYIncludesZero(bool on) { yZero_ = on; }
+    // Text of the x ticks and hover read-out, for an axis whose numbers are not what they mean
+    void setXTickText(std::function<QString(double)> text) { xTickText_ = std::move(text); update(); }
     void setView(double x0, double x1, double y0, double y1);
     void autoScale();
+    // While on, a view the user zoomed or panned to survives the plot being refilled (live updates).
+    static void setKeepUserView(bool on);
     double viewX0() const { return vx0_; }
     double viewX1() const { return vx1_; }
 
@@ -136,11 +143,13 @@ private:
     QString hLabel_;
 
     QString title_, xLabel_, yLabel_;
+    std::function<QString(double)> xTickText_;
     double vx0_ = 0, vx1_ = 1, vy0_ = 0, vy1_ = 1;
     bool fixX_ = false, fixY_ = false, yZero_ = false;
     double fx0_ = 0, fx1_ = 1, fy0_ = 0, fy1_ = 1;
     bool aspect_ = false, legend_ = true, grid_ = true;
     bool hasView_ = false;
+    bool userView_ = false;
 
     // interaction
     enum Drag { None, Zoom, Pan } drag_ = None;

@@ -78,6 +78,7 @@ void TrackingPage::refresh()
     QComboBox* cc = ui->channelCombo;
     QComboBox* sc = ui->shapeChannelCombo;
     const int keep = cc->currentIndex();
+    const QString keepName = cc->currentText();
     cc->blockSignals(true);
     sc->blockSignals(true);
     cc->clear();
@@ -90,13 +91,15 @@ void TrackingPage::refresh()
     cc->blockSignals(false);
     sc->blockSignals(false);
     if (cc->count() > 0) {
-        cc->setCurrentIndex(std::clamp(keep, 0, cc->count() - 1));
+        const int same = cc->findText(keepName);          // channels come and go on a live stream
+        cc->setCurrentIndex(same >= 0 ? same : std::clamp(keep, 0, cc->count() - 1));
         sc->setCurrentIndex(cc->currentIndex());
         const TrackingChannel& shapeCh = rx_->trk[size_t(sc->currentIndex())];
         const int n = shapeCh.numMs * shapeCh.periodMs;
         ui->shapeMsSlider->setRange(0, std::max(0, n - 1));
         ui->shapeMsSpin->setRange(0, std::max(0, n - 1));
-        if (ui->shapeMsSpin->value() == 0) ui->shapeMsSpin->setValue(std::min(n - 1, 5000));
+        if (liveMode()) ui->shapeMsSpin->setValue(std::max(0, n - 500));   // recent samples are the ones still held
+        else if (ui->shapeMsSpin->value() == 0) ui->shapeMsSpin->setValue(std::min(n - 1, 5000));
     }
     showChannel();
     fillAllChannels();
@@ -285,9 +288,9 @@ void TrackingPage::computeShape()
     const TrackingChannel& t = rx_->trk[size_t(ci)];
     const int ms = std::clamp(ui->shapeMsSpin->value() / t.periodMs, 0, t.numMs - 1);   // tracking index
     const int avg = std::max(1, ui->avgSpin->value() / t.periodMs);
-    QApplication::setOverrideCursor(Qt::WaitCursor);
+    if (!liveMode()) QApplication::setOverrideCursor(Qt::WaitCursor);
     const auto pts = Tracking::correlationShape(rx_->source, rx_->settings, t, ms, ui->spanSpin->value(), ui->tapsSpin->value(), avg);
-    QApplication::restoreOverrideCursor();
+    if (!liveMode()) QApplication::restoreOverrideCursor();
     PlotWidget* sp = ui->shapePlot;
     DataTable* st = ui->shapeTable;
     sp->clear();

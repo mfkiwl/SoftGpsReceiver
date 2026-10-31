@@ -76,12 +76,16 @@ void NavMessagePage::refresh()
 {
     QComboBox* channel_ = ui->channelCombo;
     const int keep = channel_->currentIndex();
+    const QString keepName = channel_->currentText();
     channel_->blockSignals(true);
     channel_->clear();
     if (readable(Receiver::StageDecoded))
         for (const auto& n : rx_->nav) channel_->addItem(QStringLiteral("Ch %1 - %2").arg(n.channel).arg(satName(n.prn)));
     channel_->blockSignals(false);
-    if (channel_->count() > 0) channel_->setCurrentIndex(std::clamp(keep, 0, channel_->count() - 1));
+    if (channel_->count() > 0) {
+        const int same = channel_->findText(keepName);    // channels come and go on a live stream
+        channel_->setCurrentIndex(same >= 0 ? same : std::clamp(keep, 0, channel_->count() - 1));
+    }
     showChannel();
 }
 
@@ -122,6 +126,7 @@ void NavMessagePage::showChannel()
     DataTable* bitmap_ = ui->bitmapTable;
     DataTable* fields_ = ui->fieldsTable;
     QLabel* header_ = ui->headerLabel;
+    const int keepRow = subframes_->currentRow();
     subframes_->beginFill(0);
     subframes_->endFill();
     for (DataTable* t : {words_, bitmap_, fields_}) { t->beginFill(0); t->endFill(); }
@@ -149,8 +154,9 @@ void NavMessagePage::showChannel()
         }
         subframes_->endFill();
         if (!n.inavWords.empty()) {
-            subframes_->selectRow(0);
-            showSubframe(0);
+            const int row = liveMode() ? std::clamp(keepRow, 0, int(n.inavWords.size()) - 1) : 0;
+            subframes_->selectRow(row);
+            showSubframe(row);
         }
         return;
     }
@@ -179,8 +185,9 @@ void NavMessagePage::showChannel()
     }
     subframes_->endFill();
     if (!n.subframes.empty()) {
-        subframes_->selectRow(0);
-        showSubframe(0);
+        const int row = liveMode() ? std::clamp(keepRow, 0, int(n.subframes.size()) - 1) : 0;
+        subframes_->selectRow(row);
+        showSubframe(row);
     }
 }
 

@@ -253,6 +253,9 @@ uint8_t computeParity(const uint8_t* D, int d29s, int d30s, uint8_t* dataOut24);
 
 NavChannel decodeChannel(const TrackingChannel& trk, const ReceiverSettings& s);
 void collectGlobal(const std::vector<NavChannel>& channels, GlobalNavData& g);
+// Adds what 'fresh' holds to 'total', which keeps everything older. Live mode decodes a rolling window, and pages
+// such as the ionospheric parameters come round only every 12.5 minutes.
+void mergeGlobal(const GlobalNavData& fresh, GlobalNavData& total);
 
 } // namespace nav
 } // namespace gnss

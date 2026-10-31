@@ -1,0 +1,8 @@
+<html><body><ul>
+<li><object type="text/sitemap"><param name="Name" value="Live receiver setup"><param name="Local" value="index.html"></object>
+<li><object type="text/sitemap"><param name="Name" value="Choosing the hardware"><param name="Local" value="hardware.html"></object>
+<li><object type="text/sitemap"><param name="Name" value="SDR options"><param name="Local" value="sdr-options.html"></object>
+<li><object type="text/sitemap"><param name="Name" value="Connecting a USRP N200"><param name="Local" value="connect.html"></object>
+<li><object type="text/sitemap"><param name="Name" value="Settings for live mode"><param name="Local" value="settings.html"></object>
+<li><object type="text/sitemap"><param name="Name" value="Troubleshooting"><param name="Local" value="troubleshooting.html"></object>
+</ul></body></html>

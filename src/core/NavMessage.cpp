@@ -814,6 +814,39 @@ static void collectGalileo(const NavChannel& nc, GalileoGlobal& g)
     }
 }
 
+void mergeGlobal(const GlobalNavData& in, GlobalNavData& t)
+{
+    for (int sv = 1; sv <= 32; ++sv) {
+        if (in.almanac[sv].valid) t.almanac[sv] = in.almanac[sv];
+        if (in.health6Valid[sv]) { t.health6[sv] = in.health6[sv]; t.health6Valid[sv] = true; }
+        if (in.svConfigValid[sv]) { t.svConfig[sv] = in.svConfig[sv]; t.svConfigValid[sv] = true; }
+    }
+    if (in.sf5p25) { t.sf5p25 = true; t.p25Toa = in.p25Toa; t.p25Wna = in.p25Wna; }
+    t.sf4p25 = t.sf4p25 || in.sf4p25;
+    if (in.ionoUtc.valid) t.ionoUtc = in.ionoUtc;
+    if (!in.specialMessage.isEmpty()) { t.specialMessage = in.specialMessage; t.specialMessagePrn = in.specialMessagePrn; }
+    for (const auto& kv : in.nmct) t.nmct[kv.first] = kv.second;
+    if (in.weekNumber >= 0) t.weekNumber = in.weekNumber;
+    const GalileoGlobal& g = in.galileo;
+    if (g.sourcePrn) t.galileo.sourcePrn = g.sourcePrn;
+    if (g.ionoValid) { t.galileo.ionoValid = true; t.galileo.ai0 = g.ai0; t.galileo.ai1 = g.ai1; t.galileo.ai2 = g.ai2; }
+    if (g.utcValid) {
+        t.galileo.utcValid = true;
+        t.galileo.A0 = g.A0; t.galileo.A1 = g.A1; t.galileo.dtLs = g.dtLs; t.galileo.t0t = g.t0t; t.galileo.wn0t = g.wn0t;
+        t.galileo.wnLsf = g.wnLsf; t.galileo.dn = g.dn; t.galileo.dtLsf = g.dtLsf;
+    }
+    if (g.ggtoValid) {
+        t.galileo.ggtoValid = true;
+        t.galileo.a0g = g.a0g; t.galileo.a1g = g.a1g; t.galileo.t0g = g.t0g; t.galileo.wn0g = g.wn0g;
+    }
+    for (const PageRecord& p : in.pages) {
+        const auto same = [&p](const PageRecord& o) { return o.prn == p.prn && o.subframe == p.subframe && o.tow == p.tow; };
+        if (std::find_if(t.pages.begin(), t.pages.end(), same) == t.pages.end()) t.pages.push_back(p);
+    }
+    const size_t maxPages = 2000;
+    if (t.pages.size() > maxPages) t.pages.erase(t.pages.begin(), t.pages.end() - maxPages);
+}
+
 void collectGlobal(const std::vector<NavChannel>& channels, GlobalNavData& g)
 {
     g = GlobalNavData();

@@ -49,8 +49,11 @@ struct TrackingChannel
     double dllWn = 0, dllK1 = 0, dllK2 = 0;
     double meanCn0 = 0, lockFraction = 0, finalDoppler = 0;
     double elapsedSec = 0;
+    int sidePeakJumps = 0;                // Galileo: times the code loop left a BOC side peak
 
     void reserve(int n);
+    void trimFront(int n);                // drops the oldest n entries (live mode rolling window)
+    void summarise(const ReceiverSettings& s);   // numMs, valid and the statistics below
 };
 
 struct CorrShapePoint
@@ -59,6 +62,45 @@ struct CorrShapePoint
     double magnitude;  // |I + jQ| averaged non-coherently
     double inPhase;    // I, sign-normalised to the prompt
     double quadrature;
+};
+
+// The carrier and code loops of one channel. step() processes one code period, so the same loops serve a whole
+// recording (Tracking::trackChannel) and a live stream that only has samples up to the newest one received.
+class ChannelTracker
+{
+public:
+    ChannelTracker(const ReceiverSettings& s, const AcqResult& acq, qint64 startSample, bool complexInput,
+                   TrackingChannel& ch);
+
+    // Appends one code period to the channel. Returns false, changing nothing, when the
+    // samples it needs lie beyond availableSamples.
+    bool step(const SignalSource& src, qint64 availableSamples);
+
+    qint64 nextSample() const { return pos_; }
+
+private:
+    TrackingChannel& ch_;
+    double fs_, ifFreq_;
+    bool cpx_;
+    int fllAssistMs_;
+    bool gal_ = false;
+    int periodMs_ = 1, codeLength_ = 1023;
+    double tableScale_ = 1.0;
+    std::vector<float> codeP_, dataP_;
+    double zp_ = 0, wnp_ = 0, w0f_ = 0, zd_ = 0, wnd_ = 0;
+    double d_ = 0, dopSign_ = 1, dllGain_ = 1;
+    double carrBase_ = 0, carrFreq_ = 0, codeFreq_ = 0, aidRef_ = 0;
+    bool aiding_ = false;
+    double remCode_ = 0, remCarr_ = 0;
+    double carrInteg_ = 0, codeInteg_ = 0;
+    double adr_ = 0, sI2_ = 0, sQ2_ = 0;
+    float prevI_ = 0, prevQ_ = 0, cn0_ = 0;
+    int cn0Win_ = 20;
+    int bumpEarly_ = 0, bumpLate_ = 0;
+    std::vector<double> pwr_;
+    qint64 pos_ = 0;
+    long long epoch_ = 0;
+    std::vector<float> bufI_, bufQ_;
 };
 
 class Tracking

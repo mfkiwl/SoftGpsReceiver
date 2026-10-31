@@ -121,8 +121,34 @@ struct PvtOutput
 
 namespace pvt {
 
+// Mean phase lock indicator below which a live channel no longer counts as following a signal. The indicator
+// is S/(S+2N) per integration: 0.24 at 28 dB-Hz over 1 ms, and within about +/-0.03 of zero for noise over 0.5 s.
+constexpr double kLivePhaseLock = 0.12;
+
 PvtOutput solve(const std::vector<TrackingChannel>& trk, const std::vector<NavChannel>& nav,
                 const GlobalNavData& gnav, const ReceiverSettings& s);
+
+// Solves a stream epoch by epoch: every call adds the epochs that became available since the last one to
+// out.sols and refreshes the statistics, keeping the receiver clock continuous. Unlike solve() it needs no
+// interval common to all channels, so a satellite joining or leaving does not disturb the fixes before it.
+class LiveSolver
+{
+public:
+    void update(const std::vector<TrackingChannel>& trk, const std::vector<NavChannel>& nav,
+                const GlobalNavData& gnav, const ReceiverSettings& s, int maxFixes, PvtOutput& out);
+
+private:
+    bool haveEpoch_ = false;
+    double nextR_ = 0;           // next measurement epoch (receiver sample)
+    bool haveRef_ = false;
+    double trxRef_ = 0, Rref_ = 0;
+    bool havePrev_ = false;
+    Vec3 xPrev_;
+    double bPrev_ = 0, isbPrev_ = 0;
+    bool signKnown_ = false;
+    double sign_ = 1.0;
+    int nextIndex_ = 0;
+};
 
 } // namespace pvt
 } // namespace gnss

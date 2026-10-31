@@ -16,6 +16,7 @@ public:
     ~CaCodePage() override;
     void refresh() override;
     int stage() const override { return 0; }
+    void clearContents() override {}    // the codes do not come from a recording
 
 private slots:
     void updatePlots();

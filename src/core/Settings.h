@@ -22,6 +22,38 @@ enum class Constellations { GpsGalileo = 0, GpsOnly, GalileoOnly };
 // "PRN 5" for GPS, "E30" for Galileo (see the satellite ids in Constants.h).
 QString satName(int id);
 
+// Where live samples come from: a USRP through UHD, or the open recording played back at its real rate.
+enum class LiveSourceKind { Usrp = 0, Replay };
+
+struct LiveSettings
+{
+    LiveSourceKind source = LiveSourceKind::Usrp;
+
+    // ---------------- USRP
+    QString deviceArgs = QStringLiteral("addr=192.168.10.2");
+    QString subdev;                     // empty = device default
+    QString antenna;                    // empty = device default
+    QString clockSource = QStringLiteral("internal");
+    QString uhdLibrary;                 // path of uhd.dll; empty = search the usual places
+    double centerFreq = 1575.42e6;      // Hz
+    double sampleRate = 5e6;            // Hz; the N200 offers 100 MHz divided by an integer
+    double gainDb = 30.0;
+    double bandwidth = 0.0;             // Hz; 0 = leave the daughterboard filter alone
+    double loOffset = 0.0;              // Hz, tunes the LO away from the band centre to keep its DC spike out
+
+    // ---------------- Processing
+    int ringSeconds = 10;               // sample buffer
+    int windowSeconds = 60;             // tracking history kept per channel (at least one whole GPS frame)
+    int historySeconds = 600;           // position fixes kept
+    int updateMs = 1000;                // navigation solution and display update
+    int acqIntervalSec = 10;            // search for satellites not being tracked
+    double replaySpeed = 1.0;           // replay only
+
+    // ---------------- Recording
+    bool record = false;
+    QString recordDir;
+};
+
 struct ReceiverSettings
 {
     // ---------------- Input file
@@ -35,6 +67,9 @@ struct ReceiverSettings
 
     // ---------------- Acquisition
     QVector<int> acqPrns;               // GPS PRNs to search (empty = 1..32)
+    QVector<int> acqGalSvids;           // Galileo SVIDs to search (empty = all)
+    bool acqHasDopplerHint = false;     // the receiver clock offset is already known ...
+    double acqDopplerHint = 0.0;        // ... as this Doppler common to all satellites (Hz)
     int galNonCoherent = 8;             // number of 4-ms E1 correlations summed non-coherently
     int acqStartMs = 0;                 // where in the file the acquisition block starts
     double acqSearchBand = 10000.0;     // +/- Hz around the IF
@@ -66,6 +101,8 @@ struct ReceiverSettings
     bool useEarthRotation = true;
     bool elevationWeighting = false;
     DopplerSign dopplerSign = DopplerSign::Auto;
+
+    LiveSettings live;
 
     ReceiverSettings();
 

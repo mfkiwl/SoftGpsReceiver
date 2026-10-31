@@ -31,12 +31,16 @@ void BitSyncPage::refresh()
 {
     QComboBox* channel_ = ui->channelCombo;
     const int keep = channel_->currentIndex();
+    const QString keepName = channel_->currentText();
     channel_->blockSignals(true);
     channel_->clear();
     if (readable(Receiver::StageDecoded))
         for (const auto& n : rx_->nav) channel_->addItem(QStringLiteral("Ch %1 - %2").arg(n.channel).arg(satName(n.prn)));
     channel_->blockSignals(false);
-    if (channel_->count() > 0) channel_->setCurrentIndex(std::clamp(keep, 0, channel_->count() - 1));
+    if (channel_->count() > 0) {
+        const int same = channel_->findText(keepName);    // channels come and go on a live stream
+        channel_->setCurrentIndex(same >= 0 ? same : std::clamp(keep, 0, channel_->count() - 1));
+    }
     showChannel();
 }
 

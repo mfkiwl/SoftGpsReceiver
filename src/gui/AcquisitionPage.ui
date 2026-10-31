@@ -20,14 +20,14 @@
         <item>
          <widget class="gui::PlotWidget" name="metricPlot" native="true">
           <property name="title" stdset="0"><string>Acquisition metric (peak / second peak) - click a bar</string></property>
-          <property name="xLabel" stdset="0"><string>PRN</string></property>
+          <property name="xLabel" stdset="0"><string>Satellite: GPS PRN, or E and the number for Galileo</string></property>
           <property name="yLabel" stdset="0"><string>Metric</string></property>
          </widget>
         </item>
         <item>
          <widget class="gui::PlotWidget" name="cn0Plot" native="true">
           <property name="title" stdset="0"><string>C/N0 estimated from the correlation peak</string></property>
-          <property name="xLabel" stdset="0"><string>PRN</string></property>
+          <property name="xLabel" stdset="0"><string>Satellite: GPS PRN, or E and the number for Galileo</string></property>
           <property name="yLabel" stdset="0"><string>C/N0 (dB-Hz)</string></property>
          </widget>
         </item>
