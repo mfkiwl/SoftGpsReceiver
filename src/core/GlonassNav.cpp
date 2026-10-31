@@ -117,6 +117,80 @@ std::array<StringBits, 5> encodeFrame(const GlonassEphemeris& e, int frameStart)
     return s;
 }
 
+QString stringDescription(int number)
+{
+    switch (number) {
+    case 1: return QStringLiteral("Frame time, X position, velocity and acceleration");
+    case 2: return QStringLiteral("Health, reference time tb, Y position, velocity and acceleration");
+    case 3: return QStringLiteral("Frequency offset, Z position, velocity and acceleration");
+    case 4: return QStringLiteral("Satellite clock, slot and day number");
+    case 5: return QStringLiteral("GLONASS time correction and four-year interval");
+    default: return number >= 6 && number <= 15 ? QStringLiteral("Almanac or spare") : QStringLiteral("Unknown string number");
+    }
+}
+
+std::vector<DecodedField> decodeFields(const GlonassString& s)
+{
+    struct Row { const char* name; int hi, len; bool isSigned; double lsb; const char* units; };
+    const double km = 1000.0;
+    const auto p2 = [](int e) { return std::ldexp(1.0, e); };
+    std::vector<Row> rows{{"Idle (b85)", 85, 1, false, 1, ""}, {"String number m", 84, 4, false, 1, ""}};
+    const auto add = [&](std::initializer_list<Row> r) { rows.insert(rows.end(), r); };
+    const auto axis = [&](const char* v, const char* a, const char* x) {
+        add({{v, 64, 24, true, km * p2(-20), "m/s"}, {a, 40, 5, true, km * p2(-30), "m/s^2"}, {x, 35, 27, true, km * p2(-11), "m"}});
+    };
+    switch (s.number) {
+    case 1:
+        add({{"P1", 78, 2, false, 1, ""}, {"tk hours", 76, 5, false, 1, "h"}, {"tk minutes", 71, 6, false, 1, "min"},
+             {"tk half minute", 65, 1, false, 30, "s"}});
+        axis("X velocity", "X acceleration", "X position");
+        break;
+    case 2:
+        add({{"Bn health", 80, 3, false, 1, ""}, {"P2", 77, 1, false, 1, ""}, {"tb", 76, 7, false, 900, "s"}});
+        axis("Y velocity", "Y acceleration", "Y position");
+        break;
+    case 3:
+        add({{"P3", 80, 1, false, 1, ""}, {"gamma n", 79, 11, true, p2(-40), ""}, {"p", 67, 2, false, 1, ""}, {"ln", 65, 1, false, 1, ""}});
+        axis("Z velocity", "Z acceleration", "Z position");
+        break;
+    case 4:
+        add({{"tau n", 80, 22, true, p2(-30), "s"}, {"En age", 57, 5, false, 1, "days"}, {"P4", 34, 1, false, 1, ""}, {"Ft accuracy", 33, 4, false, 1, ""},
+             {"Nt day", 26, 11, false, 1, "days"}, {"n slot", 15, 5, false, 1, ""}, {"M type", 10, 2, false, 1, ""}});
+        break;
+    case 5:
+        add({{"Na day", 80, 11, false, 1, "days"}, {"tau c", 69, 32, true, p2(-27), "s"}, {"N4 interval", 36, 5, false, 1, ""},
+             {"tau GPS", 31, 22, true, p2(-30), "s"}, {"ln", 9, 1, false, 1, ""}});
+        break;
+    default: break;
+    }
+    rows.push_back({"Hamming check", 8, 8, false, 1, ""});
+
+    StringBits b{};
+    std::copy(s.bits.begin(), s.bits.end(), b.begin());
+    std::vector<DecodedField> out;
+    for (const Row& r : rows) {
+        DecodedField d;
+        d.def.key = QLatin1String(r.name);
+        d.def.name = QLatin1String(r.name);
+        d.def.s1 = r.hi;
+        d.def.l1 = r.len;
+        d.def.isSigned = r.isSigned;
+        d.def.scale = r.lsb;
+        d.def.units = QLatin1String(r.units);
+        d.def.kind = r.hi == 8 ? FieldKind::Parity : FieldKind::Number;
+        for (int i = 0; i < r.len; ++i) d.bitString += QLatin1Char(b[size_t(r.hi - i)] ? '1' : '0');
+        d.raw = field(b, r.hi, r.len);
+        d.value = r.isSigned ? sfield(b, r.hi, r.len, r.lsb) : double(d.raw) * r.lsb;
+        d.rawSigned = r.isSigned ? qint64(std::llround(d.value / r.lsb)) : qint64(d.raw);
+        d.valueText = QString::number(d.value, 'g', 12);
+        if (r.hi == 8) d.interpretation = s.hammingOk ? QStringLiteral("OK") : QStringLiteral("FAIL");
+        else if (r.hi == 84) d.interpretation = stringDescription(s.number);
+        else if (r.hi == 80 && s.number == 2) d.interpretation = (d.raw & 4) ? QStringLiteral("Unhealthy") : QStringLiteral("Healthy");
+        out.push_back(d);
+    }
+    return out;
+}
+
 NavChannel decodeChannel(const TrackingChannel& trk, const ReceiverSettings&)
 {
     NavChannel nc;
@@ -169,7 +243,14 @@ NavChannel decodeChannel(const TrackingChannel& trk, const ReceiverSettings&)
             previous = d;
         }
         ++nc.parityTotalWords;
-        if (!hammingOk(b)) continue;
+        GlonassString gs;
+        gs.startMs = start;
+        gs.number = int(field(b, 84, 4));
+        gs.hammingOk = hammingOk(b);
+        gs.inverted = inverted;
+        gs.bits = b;
+        nc.gloStrings.push_back(gs);
+        if (!gs.hammingOk) continue;
         ++nc.parityOkWords;
         nc.verifiedMs.push_back(start);
         strings.push_back(b);
@@ -219,6 +300,8 @@ NavChannel decodeChannel(const TrackingChannel& trk, const ReceiverSettings&)
         nc.glo.tauC = sfield(*latest[5], 69, 32, std::ldexp(1.0, -27));
         nc.glo.fourYear = int(field(*latest[5], 36, 5));
     }
+    if (nc.timingValid)
+        for (GlonassString& gs : nc.gloStrings) gs.time = nc.txTimeAtMs(gs.startMs);
     nc.status = nc.glo.valid ? QStringLiteral("Ephemeris complete")
                              : QStringLiteral("Ephemeris incomplete (%1 of %2 strings passed the Hamming check)")
                                    .arg(nc.parityOkWords).arg(nc.parityTotalWords);

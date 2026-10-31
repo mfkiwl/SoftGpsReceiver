@@ -54,6 +54,18 @@ bool LiveEngine::start(const ReceiverSettings& settings, SignalSource* source, Q
     ring_.reset();
     if (s_.live.source == LiveSourceKind::Replay) {
         input_ = std::make_unique<ReplayInput>(source, s_);
+    } else if (s_.live.source == LiveSourceKind::SignalHound) {
+        auto sm = std::make_unique<SmInput>(s_.live, s_.useGlonass());
+        if (!sm->open(error)) return false;
+        const LiveInputInfo& info = sm->info();
+        s_.samplingFreq = info.sampleRate;
+        s_.ifFreq = 0;                            // the splitter centres the band
+        s_.format = SampleFormat::Int16IQ;
+        ring_ = std::make_shared<LiveRing>(qint64(info.sampleRate * std::max(2, s_.live.ringSeconds)));
+        source->attachRing(ring_);
+        sm->setRing(ring_);
+        log(info.details);
+        input_ = std::move(sm);
     } else {
         auto uhd = std::make_unique<UhdInput>(s_.live);
         if (!uhd->open(error)) return false;

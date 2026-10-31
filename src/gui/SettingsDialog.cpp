@@ -99,6 +99,9 @@ void SettingsDialog::load(const ReceiverSettings& s)
     ui->bandwidthSpin->setValue(l.bandwidth / 1e6);
     ui->loOffsetSpin->setValue(l.loOffset / 1e6);
     ui->uhdPathEdit->setText(l.uhdLibrary);
+    ui->smPathEdit->setText(l.smLibrary);
+    ui->smCenterSpin->setValue(l.smCenter / 1e6);
+    ui->smRefSpin->setValue(l.smRefLevel);
     ui->ringSpin->setValue(l.ringSeconds);
     ui->windowSpin->setValue(l.windowSeconds);
     ui->historySpin->setValue(l.historySeconds);
@@ -168,6 +171,9 @@ ReceiverSettings SettingsDialog::settings() const
     l.bandwidth = ui->bandwidthSpin->value() * 1e6;
     l.loOffset = ui->loOffsetSpin->value() * 1e6;
     l.uhdLibrary = ui->uhdPathEdit->text().trimmed();
+    l.smLibrary = ui->smPathEdit->text().trimmed();
+    l.smCenter = ui->smCenterSpin->value() * 1e6;
+    l.smRefLevel = ui->smRefSpin->value();
     l.ringSeconds = ui->ringSpin->value();
     l.windowSeconds = ui->windowSpin->value();
     l.historySeconds = ui->historySpin->value();

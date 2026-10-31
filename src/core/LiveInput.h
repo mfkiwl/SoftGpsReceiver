@@ -106,4 +106,31 @@ private:
     QThread* thread_ = nullptr;
 };
 
+// Streams from a Signal Hound SM200 over USB. Like UHD, sm_api.dll is loaded when streaming starts. The 50 MS/s stream
+// is split down to one 10 MS/s band centred on zero frequency: L1/E1, or GLONASS channel 0.
+class SmInput : public LiveInput
+{
+public:
+    SmInput(const LiveSettings& s, bool glonass);
+    ~SmInput() override;
+
+    bool start(QString* error) override;
+    void stop() override;
+
+    bool open(QString* error);
+    void setRing(std::shared_ptr<LiveRing> ring) { ring_ = std::move(ring); }
+
+private:
+    struct Api;
+    void run();
+
+    LiveSettings cfg_;
+    bool glonass_;
+    std::unique_ptr<Api> api_;
+    int handle_ = -1;
+    std::shared_ptr<LiveRing> ring_;
+    std::atomic<bool> stop_{false};
+    QThread* thread_ = nullptr;
+};
+
 } // namespace gnss

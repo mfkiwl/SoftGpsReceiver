@@ -2,6 +2,7 @@
 #include "ui_NavMessagePage.h"
 #include "DataTable.h"
 #include "core/Constants.h"
+#include "core/GlonassNav.h"
 #include "core/GalileoNav.h"
 
 #include <QComboBox>
@@ -135,6 +136,34 @@ void NavMessagePage::showChannel()
     if (!readable(Receiver::StageDecoded) || ci < 0 || ci >= int(rx_->nav.size())) return;
     const NavChannel& n = rx_->nav[size_t(ci)];
     setSubframeColumns(isGalileo(n.prn));
+    if (isGlonass(n.prn)) {
+        ui->subframesGroup->setTitle(tr("Strings (select one)"));
+        ui->wordsGroup->setTitle(tr("String: Hamming check over the data bits"));
+        ui->bitmapGroup->setTitle(tr("Bit map of the string, b85 first, 30 to a row (colour = field, hover for its name, dark = failed its check)"));
+        subframes_->setColumns({tr("#"), tr("Start ms"), tr("String"), tr("Time (s of day)"), tr("Hamming"), tr("Polarity"), tr("Content")});
+        words_->setColumns({tr("Bits b85..b1"), tr("Check bits b8..b1"), tr("Status")});
+        header_->setText(tr("   %1: %2 of %3 strings pass the Hamming check. %4")
+                             .arg(satName(n.prn)).arg(n.parityOkWords).arg(n.parityTotalWords).arg(n.status));
+        subframes_->beginFill(int(n.gloStrings.size()));
+        for (int i = 0; i < int(n.gloStrings.size()); ++i) {
+            const GlonassString& s = n.gloStrings[size_t(i)];
+            subframes_->setNum(i, 0, i, 0, s.hammingOk ? QColor() : badColor());
+            subframes_->setKey(i, i);
+            subframes_->setNum(i, 1, s.startMs, 0);
+            subframes_->setNum(i, 2, s.number, 0);
+            subframes_->setText(i, 3, s.time >= 0 ? QString::number(s.time, 'f', 0) : QStringLiteral("-"));
+            subframes_->setText(i, 4, s.hammingOk ? tr("OK") : tr("FAIL"), s.hammingOk ? goodColor() : badColor());
+            subframes_->setText(i, 5, s.inverted ? tr("inverted") : tr("normal"));
+            subframes_->setText(i, 6, glo::stringDescription(s.number));
+        }
+        subframes_->endFill();
+        if (!n.gloStrings.empty()) {
+            const int row = liveMode() ? std::clamp(keepRow, 0, int(n.gloStrings.size()) - 1) : 0;
+            subframes_->selectRow(row);
+            showSubframe(row);
+        }
+        return;
+    }
     if (isGalileo(n.prn)) {
         header_->setText(tr("   %1: %2 of %3 I/NAV words pass the CRC. %4")
                              .arg(satName(n.prn)).arg(n.parityOkWords).arg(n.parityTotalWords).arg(n.status));
@@ -204,6 +233,10 @@ void NavMessagePage::showSubframe(int index)
     const int ci = channel_->currentIndex();
     if (!readable(Receiver::StageDecoded) || ci < 0 || ci >= int(rx_->nav.size())) return;
     const NavChannel& n = rx_->nav[size_t(ci)];
+    if (isGlonass(n.prn)) {
+        showGlonassString(n, index);
+        return;
+    }
     if (isGalileo(n.prn)) {
         showInavWord(n, index);
         return;
@@ -282,6 +315,65 @@ void NavMessagePage::showSubframe(int index)
         fields_->setText(i, 8, d.valueText);
         fields_->setText(i, 9, f.units);
         fields_->setText(i, 10, d.interpretation, f.kind == FieldKind::Parity && d.interpretation.contains("FAIL") ? badColor() : QColor());
+    }
+    fields_->endFill();
+}
+
+void NavMessagePage::showGlonassString(const NavChannel& n, int index)
+{
+    if (index < 0 || index >= int(n.gloStrings.size())) return;
+    DataTable* words_ = ui->wordsTable;
+    DataTable* bitmap_ = ui->bitmapTable;
+    DataTable* fields_ = ui->fieldsTable;
+    const GlonassString& s = n.gloStrings[size_t(index)];
+    QFont mono(QStringLiteral("Consolas"));
+    mono.setStyleHint(QFont::Monospace);
+    QString all, check;
+    for (int b = glo::kStringBits; b >= 1; --b) all += QLatin1Char(s.bits[size_t(b)] ? '1' : '0');
+    for (int b = 8; b >= 1; --b) check += QLatin1Char(s.bits[size_t(b)] ? '1' : '0');
+    words_->beginFill(1);
+    words_->setText(0, 0, all);
+    words_->setText(0, 1, check);
+    words_->setText(0, 2, s.hammingOk ? tr("OK") : tr("FAIL"), s.hammingOk ? goodColor() : badColor());
+    words_->item(0, 0)->setFont(mono);
+    words_->item(0, 1)->setFont(mono);
+    words_->endFill();
+
+    const auto fields = glo::decodeFields(s);
+    std::vector<int> owner(size_t(glo::kStringBits) + 1, -1);
+    for (int i = 0; i < int(fields.size()); ++i)
+        for (int b = 0; b < fields[size_t(i)].def.l1; ++b) owner[size_t(fields[size_t(i)].def.s1 - b)] = i;
+    constexpr int kRows = 3;
+    bitmap_->setUpdatesEnabled(false);
+    bitmap_->beginFill(kRows);
+    bitmap_->setVerticalHeaderLabels({QStringLiteral("b85"), QStringLiteral("b55"), QStringLiteral("b25")});
+    for (int pos = 0; pos < glo::kStringBits; ++pos) {
+        const int b = glo::kStringBits - pos, o = owner[size_t(b)];
+        const QColor c = o >= 0 ? fieldColor(fields[size_t(o)].def, o) : QColor(255, 255, 255);
+        const QString tip = o >= 0 ? QStringLiteral("b%1\n%2").arg(b).arg(fields[size_t(o)].def.name) : QStringLiteral("b%1").arg(b);
+        bitmap_->setText(pos / 30, pos % 30, QString::number(s.bits[size_t(b)]), s.hammingOk ? c : c.darker(130), tip);
+        bitmap_->item(pos / 30, pos % 30)->setTextAlignment(Qt::AlignCenter);
+    }
+    bitmap_->endFill(false);
+    for (int c = 0; c < 30; ++c) bitmap_->setColumnWidth(c, 26);
+    bitmap_->setUpdatesEnabled(true);
+
+    fields_->beginFill(int(fields.size()));
+    for (int i = 0; i < int(fields.size()); ++i) {
+        const DecodedField& d = fields[size_t(i)];
+        const NavFieldDef& f = d.def;
+        fields_->setText(i, 0, f.name, fieldColor(f, i));
+        fields_->setText(i, 1, QString::number(s.number));
+        fields_->setText(i, 2, f.l1 > 1 ? QStringLiteral("b%1-b%2").arg(f.s1).arg(f.s1 - f.l1 + 1) : QStringLiteral("b%1").arg(f.s1));
+        fields_->setNum(i, 3, f.l1, 0);
+        fields_->setText(i, 4, d.bitString);
+        fields_->item(i, 4)->setFont(mono);
+        fields_->setNum(i, 5, double(d.raw), 0);
+        fields_->setText(i, 6, f.isSigned ? QString::number(d.rawSigned) : QStringLiteral("-"));
+        fields_->setText(i, 7, QString::number(f.scale, 'g', 6));
+        fields_->setText(i, 8, d.valueText);
+        fields_->setText(i, 9, f.units);
+        fields_->setText(i, 10, d.interpretation);
     }
     fields_->endFill();
 }

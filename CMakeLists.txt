@@ -46,6 +46,8 @@ add_library(gnsscore STATIC
     src/core/Receiver.h            src/core/Receiver.cpp
     src/core/LiveRing.h            src/core/LiveRing.cpp
     src/core/LiveInput.h           src/core/ReplayInput.cpp       src/core/UhdInput.cpp
+    src/core/SmInput.cpp
+    src/core/BandSplitter.h        src/core/BandSplitter.cpp
     src/core/LiveEngine.h          src/core/LiveEngine.cpp
 )
 target_include_directories(gnsscore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
@@ -108,6 +110,14 @@ endif()
 target_include_directories(SoftGpsReceiver PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/gui)
 target_link_libraries(SoftGpsReceiver PRIVATE gnsscore Qt6::Widgets Qt6::Gui)
 
+# The Signal Hound driver, found next to the executable. Its licence keeps it out of git, so it is optional here. It is loaded at run time, so nothing links to it.
+if(WIN32 AND EXISTS ${CMAKE_SOURCE_DIR}/third_party/signal_hound/windows_x64/sm_api.dll)
+    add_custom_target(sm_api_dll
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_SOURCE_DIR}/third_party/signal_hound/windows_x64/sm_api.dll $<TARGET_FILE_DIR:SoftGpsReceiver>
+        VERBATIM)
+    add_dependencies(SoftGpsReceiver sm_api_dll)
+endif()
+
 # Help file, next to the executable. Needs Microsoft HTML Help Workshop.
 find_program(GNSS_HHC hhc PATHS "C:/Program Files (x86)/HTML Help Workshop" "C:/Program Files/HTML Help Workshop")
 if(WIN32 AND GNSS_HHC)
@@ -166,6 +176,9 @@ if(GNSS_BUILD_TESTS)
 
     # Stands in for the UHD driver, to test the USRP path without a radio (see fake_uhd.cpp)
     if(WIN32)
+        add_library(fake_sm SHARED tests/fake_sm/fake_sm.cpp)
+        set_target_properties(fake_sm PROPERTIES OUTPUT_NAME sm_api PREFIX "" RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/fake_sm
+                              AUTOMOC OFF AUTOUIC OFF AUTORCC OFF)
         add_library(fake_uhd SHARED tests/fake_uhd/fake_uhd.cpp)
         set_target_properties(fake_uhd PROPERTIES OUTPUT_NAME uhd PREFIX "" RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/fake_uhd
                               AUTOMOC OFF AUTOUIC OFF AUTORCC OFF)

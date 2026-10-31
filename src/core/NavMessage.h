@@ -159,6 +159,17 @@ struct GlonassEphemeris
     double tauN = 0, gammaN = 0, tauC = 0;
 };
 
+// One received GLONASS string, whether or not it passed its check. bits is indexed by ICD bit number, 1..85.
+struct GlonassString
+{
+    int startMs = 0;
+    int number = 0;
+    bool hammingOk = false;
+    bool inverted = false;
+    std::array<uint8_t, 86> bits{};
+    double time = -1;            // seconds of the day at its start, once known
+};
+
 struct NavChannel
 {
     int channel = 0;
@@ -196,6 +207,7 @@ struct NavChannel
     }
     Ephemeris eph;
     GlonassEphemeris glo;
+    std::vector<GlonassString> gloStrings;
 
     // timing: transmit time of the code epoch at tracking index refMs
     bool timingValid = false;

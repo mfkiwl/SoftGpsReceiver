@@ -155,6 +155,9 @@ void ReceiverSettings::save(QSettings& s) const
     s.setValue("antenna", live.antenna);
     s.setValue("clockSource", live.clockSource);
     s.setValue("uhdLibrary", live.uhdLibrary);
+    s.setValue("smLibrary", live.smLibrary);
+    s.setValue("smCenter", live.smCenter);
+    s.setValue("smRefLevel", live.smRefLevel);
     s.setValue("centerFreq", live.centerFreq);
     s.setValue("sampleRate", live.sampleRate);
     s.setValue("gainDb", live.gainDb);
@@ -213,6 +216,9 @@ void ReceiverSettings::load(QSettings& s)
     live.antenna = s.value("antenna", ld.antenna).toString();
     live.clockSource = s.value("clockSource", ld.clockSource).toString();
     live.uhdLibrary = s.value("uhdLibrary", ld.uhdLibrary).toString();
+    live.smLibrary = s.value("smLibrary", ld.smLibrary).toString();
+    live.smCenter = s.value("smCenter", ld.smCenter).toDouble();
+    live.smRefLevel = s.value("smRefLevel", ld.smRefLevel).toDouble();
     live.centerFreq = s.value("centerFreq", ld.centerFreq).toDouble();
     live.sampleRate = s.value("sampleRate", ld.sampleRate).toDouble();
     live.gainDb = s.value("gainDb", ld.gainDb).toDouble();

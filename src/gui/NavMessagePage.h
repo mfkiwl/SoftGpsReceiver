@@ -25,6 +25,7 @@ private slots:
     void showSubframe(int index);
     void setSubframeColumns(bool galileo);
     void showInavWord(const gnss::NavChannel& n, int index);
+    void showGlonassString(const gnss::NavChannel& n, int index);
 
 private:
     Ui::NavMessagePage* ui;

@@ -72,3 +72,6 @@ Testing/
 *.user.*
 CMakeLists.txt.user*
 .qtcreator/
+
+# Signal Hound SDK files: local only, the licence restricts distributing them
+third_party/signal_hound/

@@ -109,7 +109,8 @@ int main(int argc, char** argv)
     }
     Receiver rx;
     QObject::connect(&rx, &Receiver::logMessage, [](const QString& t) { out() << t << "\n"; out().flush(); });
-    const bool usrp = args.contains("--usrp");
+    const bool sm = args.contains("--sm");
+    const bool usrp = args.contains("--usrp") || sm;
     QString err;
     if (!usrp && !rx.openFile(args[1], &err)) {
         out() << err << "\n";
@@ -119,7 +120,7 @@ int main(int argc, char** argv)
     bool live = usrp;
     int seconds = 0;
     LiveSettings& ls = rx.settings.live;
-    ls.source = usrp ? LiveSourceKind::Usrp : LiveSourceKind::Replay;
+    ls.source = sm ? LiveSourceKind::SignalHound : usrp ? LiveSourceKind::Usrp : LiveSourceKind::Replay;
     for (int i = 1; i < args.size(); ++i) {
         const bool more = i + 1 < args.size();
         if (args[i] == "--live") live = true;
@@ -148,6 +149,9 @@ int main(int argc, char** argv)
         else if (args[i] == "--clock") ls.clockSource = args[++i];
         else if (args[i] == "--lo-offset") ls.loOffset = args[++i].toDouble();
         else if (args[i] == "--uhd") ls.uhdLibrary = args[++i];
+        else if (args[i] == "--sm-dll") ls.smLibrary = args[++i];
+        else if (args[i] == "--sm-center") ls.smCenter = args[++i].toDouble();
+        else if (args[i] == "--ref-level") ls.smRefLevel = args[++i].toDouble();
         else if (args[i] == "--record") { ls.record = true; ls.recordDir = args[++i]; }
     }
     if (live) return runLive(rx, seconds, csv);

@@ -28,6 +28,11 @@ void putSigned(StringBits& b, int hi, int len, double value, double lsb);
 // The strings of one frame for an ephemeris; frameStart is the time of string 1 in seconds of the day
 std::array<StringBits, 5> encodeFrame(const GlonassEphemeris& e, int frameStart);
 
+// For display: the fields of a string, and what a string number carries. In the definitions s1 is the ICD number of the
+// top bit and l1 the length.
+std::vector<DecodedField> decodeFields(const GlonassString& s);
+QString stringDescription(int number);
+
 NavChannel decodeChannel(const TrackingChannel& trk, const ReceiverSettings& s);
 
 } // namespace glo

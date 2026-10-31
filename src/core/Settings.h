@@ -25,7 +25,7 @@ enum class Constellations { GpsGalileo = 0, GpsOnly, GalileoOnly, GlonassOnly };
 QString satName(int id);
 
 // Where live samples come from: a USRP through UHD, or the open recording played back at its real rate.
-enum class LiveSourceKind { Usrp = 0, Replay };
+enum class LiveSourceKind { Usrp = 0, Replay, SignalHound };
 
 struct LiveSettings
 {
@@ -37,6 +37,11 @@ struct LiveSettings
     QString antenna;                    // empty = device default
     QString clockSource = QStringLiteral("internal");
     QString uhdLibrary;                 // path of uhd.dll; empty = search the usual places
+
+    // ---------------- Signal Hound SM200, streaming 41.5 MHz at 50 MS/s
+    QString smLibrary;                  // path of sm_api.dll; empty = next to the program, then the system path
+    double smCenter = 1590e6;           // Hz. 1585 MHz would cut into GLONASS channel +6
+    double smRefLevel = -40.0;          // dBm, full scale
     double centerFreq = 1575.42e6;      // Hz
     double sampleRate = 5e6;            // Hz; the N200 offers 100 MHz divided by an integer
     double gainDb = 30.0;

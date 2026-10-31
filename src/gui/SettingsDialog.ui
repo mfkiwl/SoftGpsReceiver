@@ -158,6 +158,7 @@
         <widget class="QComboBox" name="liveSourceCombo">
          <item><property name="text"><string>USRP (through the UHD driver)</string></property></item>
          <item><property name="text"><string>Replay the open recording in real time</string></property></item>
+         <item><property name="text"><string>Signal Hound SM200 (through sm_api.dll)</string></property></item>
         </widget>
        </item>
        <item row="1" column="0"><widget class="QLabel" name="deviceArgsLabel"><property name="text"><string>Device address</string></property></widget></item>
@@ -203,6 +204,12 @@
        <item row="17" column="1"><widget class="QCheckBox" name="recordCheck"><property name="text"><string>Record the samples to disk (20 MB/s at 5 MS/s)</string></property></widget></item>
        <item row="18" column="0"><widget class="QLabel" name="recordDirLabel"><property name="text"><string>Recording folder</string></property></widget></item>
        <item row="18" column="1"><widget class="QLineEdit" name="recordDirEdit"/></item>
+       <item row="19" column="0"><widget class="QLabel" name="smPathLabel"><property name="text"><string>SM200 sm_api.dll</string></property></widget></item>
+       <item row="19" column="1"><widget class="QLineEdit" name="smPathEdit"><property name="toolTip"><string>Path of sm_api.dll from the Signal Hound SDK. Empty = next to the program, then the system path.</string></property></widget></item>
+       <item row="20" column="0"><widget class="QLabel" name="smCenterLabel"><property name="text"><string>SM200 centre</string></property></widget></item>
+       <item row="20" column="1"><widget class="QDoubleSpinBox" name="smCenterSpin"><property name="toolTip"><string>41.5 MHz is usable at 50 MS/s. 1590 MHz covers L1/E1 and every GLONASS channel; 1585 MHz clips channel +6.</string></property><property name="suffix"><string> MHz</string></property><property name="decimals"><number>3</number></property><property name="minimum"><double>1500.000000000000000</double></property><property name="maximum"><double>1700.000000000000000</double></property></widget></item>
+       <item row="21" column="0"><widget class="QLabel" name="smRefLabel"><property name="text"><string>SM200 reference level</string></property></widget></item>
+       <item row="21" column="1"><widget class="QDoubleSpinBox" name="smRefSpin"><property name="suffix"><string> dBm</string></property><property name="minimum"><double>-130.000000000000000</double></property><property name="maximum"><double>20.000000000000000</double></property></widget></item>
       </layout>
      </widget>
     </widget>

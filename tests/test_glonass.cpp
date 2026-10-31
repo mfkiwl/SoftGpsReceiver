@@ -1,6 +1,7 @@
 // Checks the GLONASS code and the satellite id scheme.
 
 #include "core/Acquisition.h"
+#include "core/BandSplitter.h"
 #include "core/Constants.h"
 #include "core/Ephemeris.h"
 #include "core/GlonassCode.h"
@@ -130,6 +131,12 @@ static void testMessage()
     const NavChannel n = glo::decodeChannel(t, ReceiverSettings());
     std::printf("%d of %d strings ok, timing %d, ref ms %d, tow %.0f\n", n.parityOkWords, n.parityTotalWords, n.timingValid, n.refMs, n.refTow);
     check(n.parityOkWords >= n.parityTotalWords - 1 && n.parityTotalWords > 80, "strings pass in noise and inverted");
+    double shownX = 0;
+    for (const GlonassString& gs : n.gloStrings)
+        if (gs.number == 1 && gs.hammingOk)
+            for (const DecodedField& d : glo::decodeFields(gs))
+                if (d.def.name == QLatin1String("X position")) shownX = d.value;
+    check(std::fabs(shownX - e.pos[0]) < 0.3 && !n.gloStrings.empty() && n.gloStrings[1].time > 0, "string view: fields and time");
     check(n.glo.valid && n.glo.slot == 7 && n.glo.dayNumber == 321, "ephemeris assembled");
     check(std::fabs(n.glo.pos[0] - e.pos[0]) < 0.3 && std::fabs(n.glo.pos[1] - e.pos[1]) < 0.3 && std::fabs(n.glo.pos[2] - e.pos[2]) < 0.3, "position");
     check(std::fabs(n.glo.vel[1] - e.vel[1]) < 0.001 && std::fabs(n.glo.acc[1] - e.acc[1]) < 1e-6 && n.glo.tb == e.tb, "velocity, acceleration, tb");
@@ -161,8 +168,35 @@ static void testOrbit()
     check(std::fabs(t - (1100 + 1e-5 - 1e-9)) < 1e-12, "clock correction follows t = tsv + tauN - gamma (t - tb)");
 }
 
+// Tone power after a splitter, for a tone at f in a 50 MS/s stream
+static double splitPower(double f, double offset)
+{
+    BandSplitter band(50e6, 5, offset, 4.5e6);
+    std::vector<float> iq(2 * 1000000);
+    for (int k = 0; k < 1000000; ++k) {
+        iq[size_t(2 * k)] = float(std::cos(kTwoPi * f * k / 50e6));
+        iq[size_t(2 * k + 1)] = float(std::sin(kTwoPi * f * k / 50e6));
+    }
+    std::vector<int16_t> out(2 * 200010);
+    const int n = band.process(iq.data(), 1000000, 10000.0f, out.data());
+    double p = 0;
+    for (int i = 1000; i < n; ++i) p += double(out[size_t(2 * i)]) * out[size_t(2 * i)] + double(out[size_t(2 * i + 1)]) * out[size_t(2 * i + 1)];
+    return 10 * std::log10(p / (n - 1000) / 1e8 + 1e-12);
+}
+
+static void testSplitter()
+{
+    const double l1 = kL1Freq - 1590e6, glo = kGlonassL1Base - 1590e6;
+    const double inBandGlo = splitPower(glo + 3.4e6, glo), inBandL1 = splitPower(l1 + 1e6, l1);
+    const double image = splitPower(glo + 10e6, glo), other = splitPower(l1, glo);
+    std::printf("band pass %.2f / %.2f dB, 10 MHz image %.1f dB, L1 in the GLONASS band %.1f dB\n", inBandGlo, inBandL1, image, other);
+    check(std::fabs(inBandGlo) < 1 && std::fabs(inBandL1) < 1, "each band passes its signals");
+    check(image < -40 && other < -40, "the splitter rejects what lies outside the band");
+}
+
 int main()
 {
+    testSplitter();
     testOrbit();
     testMessage();
     testSearchAndTrack();

@@ -5,7 +5,7 @@
   <property name="geometry">
    <rect><x>0</x><y>0</y><width>1400</width><height>1000</height></rect>
   </property>
-  <layout class="QVBoxLayout" name="mainLayout">
+  <layout class="QVBoxLayout" name="mainLayout" stretch="0,1">
    <item>
     <layout class="QHBoxLayout" name="controlsLayout">
      <item><widget class="QLabel" name="channelLabel"><property name="text"><string>Channel</string></property></widget></item>
