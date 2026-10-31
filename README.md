@@ -231,6 +231,24 @@ This tests the receiver chain and is not evidence of Galileo accuracy. The simul
 ionosphere or front-end filtering, which is why their scatter is so small, and they take their position from the GPS
 solution and use the receiver's own orbit and atmosphere code, so agreement between the rows is expected.
 
+## Results with GLONASS
+
+No real GLONASS recording has been tried yet. These results are from `GLONASS_sim-fs10-if0-int8iq.bin`, made by
+`tests/gen_glonass.cpp`: 90 s of complex int8 samples at 10 MS/s centred on 1602 MHz, with five made-up satellites at
+46 dB-Hz, white noise, a troposphere delay and a receiver clock error. The true position is 40 N, 105 W, 1600 m.
+
+| Run | First fix | Fixes | Mean error E / N / U | Scatter E / N / U |
+|---|---|---|---|---|
+| Batch | | 178 | 0.01 / 0.11 / 0.32 m | 4.43 / 3.31 / 8.03 m |
+| Real-time replay | 23.1 s | 178 | 0.01 / 0.08 / 0.25 m | 4.30 / 3.41 / 8.27 m |
+
+* All five satellites (R-5, R-2, R+0, R+1, R+3) were acquired with no false channels, at a measured 45.2 to 46.0 dB-Hz.
+* All 44 strings on each satellite passed the Hamming check.
+* PDOP is 3.17: five satellites give weak geometry, which accounts for much of the scatter.
+
+The generator and receiver share the same code, message and orbit routines, so this shows that the chain works
+end to end, not that it matches real satellites.
+
 ## Screenshots
 
 All screenshots below come from processing the sample recording. You can regenerate them with
