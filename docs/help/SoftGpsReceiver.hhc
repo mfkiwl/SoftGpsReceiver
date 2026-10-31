@@ -1,5 +1,6 @@
 <html><body><ul>
 <li><object type="text/sitemap"><param name="Name" value="Live receiver setup"><param name="Local" value="index.html"></object>
+<li><object type="text/sitemap"><param name="Name" value="How the receiver works"><param name="Local" value="how-it-works.html"></object>
 <li><object type="text/sitemap"><param name="Name" value="Choosing the hardware"><param name="Local" value="hardware.html"></object>
 <li><object type="text/sitemap"><param name="Name" value="SDR options"><param name="Local" value="sdr-options.html"></object>
 <li><object type="text/sitemap"><param name="Name" value="Connecting a USRP N200"><param name="Local" value="connect.html"></object>

@@ -1,5 +1,7 @@
 <html>
 <head>
+<meta http-equiv="Content-Type" content="text/html; charset=us-ascii">
+<title>How the receiver works</title>
 <style>
 body { font-family: sans-serif; font-size: 10pt; }
 h2 { color: #1f4e79; border-bottom: 1px solid #1f4e79; margin-top: 18px; }
@@ -188,6 +190,15 @@ verified subframe rather than a whole frame. A measurement counts only while the
 0.5 s stays above 0.12: the C/N<sub>0</sub> estimate alone stays high on pure noise for several seconds.</p>
 <p>The solver keeps the receiver clock continuous across updates. Unlike the batch solver it needs no interval common to all
 channels, so a satellite joining or leaving does not disturb earlier fixes.</p>
+
+<h2>9. GLONASS L1OF</h2>
+<p>GLONASS gives every satellite the same 511-chip code at 0.511 Mchip/s and separates them by frequency: channel k sits at
+1602 + 0.5625 k MHz, with k from -7 to +6. Acquisition therefore searches for the one code around each channel's frequency.</p>
+<p>A 2 s string is 1.7 s of data and a 0.3 s time mark. Its 85 bits are relative-coded and sent as Manchester pairs of 10 ms
+symbols, and 8 Hamming check bits protect each string. The mark gives the symbol timing, and strings 1 to 4 of each 30 s frame
+hold the satellite's position, velocity, acceleration and clock.</p>
+<p>The satellite position comes from integrating the broadcast state from its reference time, with J2 and the broadcast
+acceleration. Solutions run on GLONASS time in seconds of the day, and GLONASS is not yet combined with GPS in one fix.</p>
 
 <h2>References</h2>
 <ul>

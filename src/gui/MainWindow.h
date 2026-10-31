@@ -57,6 +57,7 @@ private:
     void updateActions();
     void refreshVisiblePage();
     void leaveLive();
+    void openHelp(const QString& topic);
 
     Ui::MainWindow* ui;
     gnss::Receiver rx_;

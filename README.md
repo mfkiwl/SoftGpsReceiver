@@ -388,7 +388,7 @@ src/core/            GUI-independent receiver (Qt Core + Concurrent only)
 src/gui/             Qt Widgets front end (.ui forms + page classes, PlotWidget, SkyPlotWidget, DataTable)
 src/cli/             command-line front end
 tests/               decoder test against the worked example in the Galileo ICD (option GNSS_BUILD_TESTS)
-docs/algorithms.html algorithm description shown on the Overview page
+docs/help/          the help file, including how the receiver works
 resources/           application icon (make_icon.py regenerates the .ico)
 ```
 

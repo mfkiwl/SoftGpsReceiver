@@ -40,8 +40,6 @@ OverviewPage::OverviewPage(QWidget* parent) : PageBase(parent), ui(new Ui::Overv
         QDesktopServices::openUrl(QUrl(QStringLiteral("https://www.openstreetmap.org/?mlat=%1&mlon=%2#map=17/%1/%2")
                                            .arg(lat, 0, 'f', 7).arg(lon, 0, 'f', 7)));
     });
-    QFile f(QStringLiteral(":/docs/algorithms.html"));
-    if (f.open(QIODevice::ReadOnly)) ui->docBrowser->setHtml(QString::fromUtf8(f.readAll()));
 }
 
 OverviewPage::~OverviewPage()

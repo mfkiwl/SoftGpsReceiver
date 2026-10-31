@@ -29,6 +29,7 @@
 #include <QFileInfo>
 #include <QLabel>
 #include <QMessageBox>
+#include <QProcess>
 #include <QProgressBar>
 #include <QSettings>
 #include <QStyle>
@@ -103,7 +104,7 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent), ui(new Ui::MainWi
     connect(ui->actionExportKml, &QAction::triggered, ui->positionPage, &PositionPage::exportKml);
     connect(ui->actionAbout, &QAction::triggered, this, &MainWindow::onAbout);
     connect(ui->actionSetupGuide, &QAction::triggered, this, &MainWindow::onSetupGuide);
-    connect(ui->actionAlgorithms, &QAction::triggered, this, [this] { ui->pages->setCurrentWidget(ui->overviewPage); });
+    connect(ui->actionAlgorithms, &QAction::triggered, this, [this] { openHelp(QStringLiteral("how-it-works.html")); });
     connect(ui->overviewPage, &OverviewPage::prnSelected, this, &MainWindow::selectPrnEverywhere);
 
     connect(&rx_, &Receiver::logMessage, this, &MainWindow::onLog, Qt::QueuedConnection);
@@ -459,8 +460,13 @@ void MainWindow::captureScreenshots(const QString& dir, int liveSeconds, bool us
 
 void MainWindow::onSetupGuide()
 {
-    const QString chm = QDir(QCoreApplication::applicationDirPath()).filePath(QStringLiteral("SoftGpsReceiver.chm"));
-    if (!QFileInfo::exists(chm) || !QDesktopServices::openUrl(QUrl::fromLocalFile(chm)))
+    openHelp(QStringLiteral("index.html"));
+}
+
+void MainWindow::openHelp(const QString& topic)
+{
+    const QString chm = QDir::toNativeSeparators(QDir(QCoreApplication::applicationDirPath()).filePath(QStringLiteral("SoftGpsReceiver.chm")));
+    if (!QFileInfo::exists(chm) || !QProcess::startDetached(QStringLiteral("hh.exe"), {chm + QStringLiteral("::/") + topic}))
         QMessageBox::warning(this, tr("Help"), tr("Could not open %1. Building it needs Microsoft HTML Help Workshop.").arg(chm));
 }
 

@@ -96,10 +96,6 @@ set(GNSS_GUI_SOURCES
     src/gui/GuiUtil.h              src/gui/GuiUtil.cpp
 )
 qt_add_executable(SoftGpsReceiver WIN32 MACOSX_BUNDLE src/main.cpp ${GNSS_GUI_SOURCES})
-qt_add_resources(SoftGpsReceiver "docs"
-    PREFIX "/"
-    FILES docs/algorithms.html
-)
 qt_add_resources(SoftGpsReceiver "icon"
     PREFIX "/"
     FILES resources/SoftGpsReceiver.ico
@@ -121,18 +117,16 @@ endif()
 # Help file, next to the executable. Needs Microsoft HTML Help Workshop.
 find_program(GNSS_HHC hhc PATHS "C:/Program Files (x86)/HTML Help Workshop" "C:/Program Files/HTML Help Workshop")
 if(WIN32 AND GNSS_HHC)
+    file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/help)
     file(GLOB GNSS_HELP_FILES CONFIGURE_DEPENDS docs/help/*)
-    add_custom_command(OUTPUT ${CMAKE_BINARY_DIR}/help/SoftGpsReceiver.chm
+    add_custom_command(OUTPUT ${CMAKE_BINARY_DIR}/SoftGpsReceiver.chm
         COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/docs/help ${CMAKE_BINARY_DIR}/help
         COMMAND cmd /c .\\build_chm.cmd "${GNSS_HHC}" SoftGpsReceiver.hhp
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/help
         DEPENDS ${GNSS_HELP_FILES} VERBATIM)
     # Part of building the executable itself, as Qt Creator may build only that target before running
-    add_custom_target(help_chm DEPENDS ${CMAKE_BINARY_DIR}/help/SoftGpsReceiver.chm)
+    add_custom_target(help_chm DEPENDS ${CMAKE_BINARY_DIR}/SoftGpsReceiver.chm)
     add_dependencies(SoftGpsReceiver help_chm)
-    add_custom_command(TARGET SoftGpsReceiver POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_BINARY_DIR}/help/SoftGpsReceiver.chm $<TARGET_FILE_DIR:SoftGpsReceiver>
-        VERBATIM)
 elseif(WIN32)
     message(STATUS "HTML Help Workshop not found: SoftGpsReceiver.chm will not be built")
 endif()

@@ -1,6 +1,6 @@
 [OPTIONS]
 Compatibility=1.1 or later
-Compiled file=SoftGpsReceiver.chm
+Compiled file=..\SoftGpsReceiver.chm
 Contents file=SoftGpsReceiver.hhc
 Default topic=index.html
 Default Window=main
@@ -13,6 +13,7 @@ main="Software GPS Receiver Help","SoftGpsReceiver.hhc",,"index.html","index.htm
 
 [FILES]
 index.html
+how-it-works.html
 hardware.html
 sdr-options.html
 connect.html

@@ -101,9 +101,6 @@
        </layout>
       </widget>
      </widget>
-     <widget class="QTextBrowser" name="docBrowser">
-      <property name="openExternalLinks"><bool>true</bool></property>
-     </widget>
     </widget>
    </item>
   </layout>
