@@ -133,4 +133,29 @@ private:
     QThread* thread_ = nullptr;
 };
 
+// Reads the stream of the GPSSim simulator over TCP. TCP loses nothing, and the simulator waits for a slow reader.
+class TcpInput : public LiveInput
+{
+public:
+    explicit TcpInput(const LiveSettings& s);
+    ~TcpInput() override;
+
+    bool start(QString* error) override;
+    void stop() override;
+
+    // Connects and reads the rate and format from the stream
+    bool open(QString* error);
+    void setRing(std::shared_ptr<LiveRing> ring) { ring_ = std::move(ring); }
+
+private:
+    void run();
+
+    LiveSettings cfg_;
+    std::shared_ptr<LiveRing> ring_;
+    std::atomic<bool> opened_{false};
+    std::atomic<bool> ready_{false};
+    std::atomic<bool> stop_{false};
+    QThread* thread_ = nullptr;
+};
+
 } // namespace gnss

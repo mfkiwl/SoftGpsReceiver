@@ -104,13 +104,15 @@ int main(int argc, char** argv)
     if (args.size() < 2) {
         out() << "usage: gnss_cli <file.bin> [--ms N] [--channels N] [--fs Hz] [--if Hz] [--gnss all|gps|gal] [--csv out.csv]\n"
                  "       gnss_cli <file.bin> --live [--speed X] [--seconds N]\n"
+                 "       gnss_cli --tcp host:port [--seconds N]\n"
                  "       gnss_cli --usrp [--args addr=192.168.10.2] [--rate 5e6] [--gain 30] [--seconds N] [--record dir]\n";
         return 1;
     }
     Receiver rx;
     QObject::connect(&rx, &Receiver::logMessage, [](const QString& t) { out() << t << "\n"; out().flush(); });
     const bool sm = args.contains("--sm");
-    const bool usrp = args.contains("--usrp") || sm;
+    const bool tcp = args.contains("--tcp");
+    const bool usrp = args.contains("--usrp") || sm || tcp;
     QString err;
     if (!usrp && !rx.openFile(args[1], &err)) {
         out() << err << "\n";
@@ -120,7 +122,7 @@ int main(int argc, char** argv)
     bool live = usrp;
     int seconds = 0;
     LiveSettings& ls = rx.settings.live;
-    ls.source = sm ? LiveSourceKind::SignalHound : usrp ? LiveSourceKind::Usrp : LiveSourceKind::Replay;
+    ls.source = tcp ? LiveSourceKind::GpsSim : sm ? LiveSourceKind::SignalHound : usrp ? LiveSourceKind::Usrp : LiveSourceKind::Replay;
     for (int i = 1; i < args.size(); ++i) {
         const bool more = i + 1 < args.size();
         if (args[i] == "--live") live = true;
@@ -140,6 +142,11 @@ int main(int argc, char** argv)
         else if (args[i] == "--update-ms") ls.updateMs = args[++i].toInt();
         else if (args[i] == "--window") ls.windowSeconds = args[++i].toInt();
         else if (args[i] == "--acq-interval") ls.acqIntervalSec = args[++i].toInt();
+        else if (args[i] == "--tcp") {
+            const QStringList at = args[++i].split(':');
+            ls.tcpHost = at[0];
+            if (at.size() > 1) ls.tcpPort = at[1].toInt();
+        }
         else if (args[i] == "--args") ls.deviceArgs = args[++i];
         else if (args[i] == "--rate") ls.sampleRate = args[++i].toDouble();
         else if (args[i] == "--center") ls.centerFreq = args[++i].toDouble();

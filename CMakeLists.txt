@@ -9,7 +9,7 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
 endif()
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Concurrent)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Concurrent Network)
 qt_standard_project_setup()
 
 # Sources are UTF-8 (degree signs etc.)
@@ -46,12 +46,12 @@ add_library(gnsscore STATIC
     src/core/Receiver.h            src/core/Receiver.cpp
     src/core/LiveRing.h            src/core/LiveRing.cpp
     src/core/LiveInput.h           src/core/ReplayInput.cpp       src/core/UhdInput.cpp
-    src/core/SmInput.cpp
+    src/core/SmInput.cpp           src/core/TcpInput.cpp
     src/core/BandSplitter.h        src/core/BandSplitter.cpp
     src/core/LiveEngine.h          src/core/LiveEngine.cpp
 )
 target_include_directories(gnsscore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
-target_link_libraries(gnsscore PUBLIC Qt6::Core Qt6::Concurrent)
+target_link_libraries(gnsscore PUBLIC Qt6::Core Qt6::Concurrent Qt6::Network)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(gnsscore PRIVATE -Wall -Wextra -Wno-unused-parameter)

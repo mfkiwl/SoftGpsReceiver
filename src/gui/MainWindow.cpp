@@ -292,7 +292,8 @@ void MainWindow::startLive()
     }
     setLiveMode(true);
     PlotWidget::setKeepUserView(true);
-    rx_.liveDescription = rx_.settings.live.source == LiveSourceKind::Usrp ? tr("Live stream from %1").arg(rx_.settings.live.deviceArgs)
+    rx_.liveDescription = rx_.settings.live.source == LiveSourceKind::GpsSim ? tr("Live stream from GPSSim at %1").arg(rx_.settings.live.tcpHost)
+                          : rx_.settings.live.source == LiveSourceKind::Usrp ? tr("Live stream from %1").arg(rx_.settings.live.deviceArgs)
                                                                            : QString();
     ui->livePage->setRunning(true);
     ui->livePage->setMessage(tr("Starting..."));

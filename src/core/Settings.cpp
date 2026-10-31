@@ -169,6 +169,8 @@ void ReceiverSettings::save(QSettings& s) const
     s.setValue("updateMs", live.updateMs);
     s.setValue("acqIntervalSec", live.acqIntervalSec);
     s.setValue("replaySpeed", live.replaySpeed);
+    s.setValue("tcpHost", live.tcpHost);
+    s.setValue("tcpPort", live.tcpPort);
     s.setValue("record", live.record);
     s.setValue("recordDir", live.recordDir);
     s.endGroup();
@@ -230,6 +232,8 @@ void ReceiverSettings::load(QSettings& s)
     live.updateMs = s.value("updateMs", ld.updateMs).toInt();
     live.acqIntervalSec = s.value("acqIntervalSec", ld.acqIntervalSec).toInt();
     live.replaySpeed = s.value("replaySpeed", ld.replaySpeed).toDouble();
+    live.tcpHost = s.value("tcpHost", ld.tcpHost).toString();
+    live.tcpPort = s.value("tcpPort", ld.tcpPort).toInt();
     live.record = s.value("record", ld.record).toBool();
     live.recordDir = s.value("recordDir", ld.recordDir).toString();
     s.endGroup();

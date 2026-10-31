@@ -108,6 +108,8 @@ void SettingsDialog::load(const ReceiverSettings& s)
     ui->updateSpin->setValue(l.updateMs);
     ui->acqIntervalSpin->setValue(l.acqIntervalSec);
     ui->replaySpeedSpin->setValue(l.replaySpeed);
+    ui->tcpHostEdit->setText(l.tcpHost);
+    ui->tcpPortSpin->setValue(l.tcpPort);
     ui->recordCheck->setChecked(l.record);
     ui->recordDirEdit->setText(l.recordDir);
     updateDerived();
@@ -180,6 +182,8 @@ ReceiverSettings SettingsDialog::settings() const
     l.updateMs = ui->updateSpin->value();
     l.acqIntervalSec = ui->acqIntervalSpin->value();
     l.replaySpeed = ui->replaySpeedSpin->value();
+    l.tcpHost = ui->tcpHostEdit->text();
+    l.tcpPort = ui->tcpPortSpin->value();
     l.record = ui->recordCheck->isChecked();
     l.recordDir = ui->recordDirEdit->text().trimmed();
     return s;

@@ -25,7 +25,7 @@ enum class Constellations { GpsGalileo = 0, GpsOnly, GalileoOnly, GlonassOnly };
 QString satName(int id);
 
 // Where live samples come from: a USRP through UHD, or the open recording played back at its real rate.
-enum class LiveSourceKind { Usrp = 0, Replay, SignalHound };
+enum class LiveSourceKind { Usrp = 0, Replay, SignalHound, GpsSim };
 
 struct LiveSettings
 {
@@ -47,6 +47,10 @@ struct LiveSettings
     double gainDb = 30.0;
     double bandwidth = 0.0;             // Hz; 0 = leave the daughterboard filter alone
     double loOffset = 0.0;              // Hz, tunes the LO away from the band centre to keep its DC spike out
+
+    // ---------------- GPSSim simulator, over TCP
+    QString tcpHost = QStringLiteral("127.0.0.1");
+    int tcpPort = 5555;
 
     // ---------------- Processing
     int ringSeconds = 10;               // sample buffer

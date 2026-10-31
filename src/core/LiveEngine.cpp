@@ -54,6 +54,17 @@ bool LiveEngine::start(const ReceiverSettings& settings, SignalSource* source, Q
     ring_.reset();
     if (s_.live.source == LiveSourceKind::Replay) {
         input_ = std::make_unique<ReplayInput>(source, s_);
+    } else if (s_.live.source == LiveSourceKind::GpsSim) {
+        auto tcp = std::make_unique<TcpInput>(s_.live);
+        if (!tcp->open(error)) return false;
+        const LiveInputInfo& info = tcp->info();
+        s_.samplingFreq = info.sampleRate;
+        s_.ifFreq = kL1Freq - info.centerFreq;
+        s_.format = SampleFormat::Int16IQ;
+        ring_ = std::make_shared<LiveRing>(qint64(info.sampleRate * std::max(2, s_.live.ringSeconds)));
+        source->attachRing(ring_);
+        tcp->setRing(ring_);
+        input_ = std::move(tcp);
     } else if (s_.live.source == LiveSourceKind::SignalHound) {
         auto sm = std::make_unique<SmInput>(s_.live, s_.useGlonass());
         if (!sm->open(error)) return false;
