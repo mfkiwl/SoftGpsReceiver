@@ -31,7 +31,15 @@ seconds to acquisition, so choose GPS only for a recording made before Galileo w
 
 Galileo satellites are named E and a number, such as E24, while GPS satellites go by their PRN. The Overview, Live and
 Acquisition tables have a *System* column, and the bar charts continue from the GPS PRNs into E01 to E36. On the sky plots
-GPS satellites are circles and Galileo satellites are squares, with a count of each in the corner.
+GPS satellites are circles, Galileo satellites squares and GLONASS satellites triangles, with a count of each in the corner.
+
+### GLONASS
+
+GLONASS L1OF is supported for recordings on its own band, near 1602 MHz, as *GLONASS only*: a file with `glonass` in its
+name selects this by itself, and its IF is that of frequency channel 0. Satellites are named by channel, such as R-3.
+`tests/gen_glonass.cpp` (built with `-DGNSS_BUILD_TESTS=ON`) writes a simulated recording of made-up satellites.
+This has only been tested on simulated signals, and the code and message layout still need checking against a real
+recording. Times in a GLONASS solution are GLONASS seconds of the day, and GLONASS cannot yet be combined with GPS in one fix.
 
 The file name gives the IF rounded to 9.55 MHz. The true IF of this recording is fs/4 = 9.548 MHz. The receiver
 copes either way, and the Position page reports the measured *effective IF* (9.547984 MHz) from the

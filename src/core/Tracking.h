@@ -68,6 +68,8 @@ struct CorrShapePoint
 // recording (Tracking::trackChannel) and a live stream that only has samples up to the newest one received.
 class ChannelTracker
 {
+    double chipRate_ = kCaChipRate, carrToCode_ = kCarrierToCode;
+
 public:
     ChannelTracker(const ReceiverSettings& s, const AcqResult& acq, qint64 startSample, bool complexInput,
                    TrackingChannel& ch);

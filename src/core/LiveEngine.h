@@ -113,6 +113,7 @@ private:
     void pipeline();
     void acquisitionLoop();
     void searchFor(bool galileo);
+    void searchGlonass();
     void recorderLoop();
     void adoptAcquisitions();
     void advanceChannels(qint64 head);

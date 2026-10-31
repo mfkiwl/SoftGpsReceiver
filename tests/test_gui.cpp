@@ -394,7 +394,7 @@ void testGalileoLabels()
     QVector<int> ids;
     for (const SkyPlotWidget::Sat& s : live.findChild<SkyPlotWidget*>(QStringLiteral("skyPlot"))->satellites()) ids << s.prn;
     check(ids.contains(24) && ids.contains(e24), QStringLiteral("Live sky plot keeps E24 and PRN 24 apart"));
-    check(live.findChild<QLabel*>(QStringLiteral("stateLabel"))->text().contains(QLatin1String("2 GPS and 2 Galileo")), QStringLiteral("Live state line counts each system"));
+    check(live.findChild<QLabel*>(QStringLiteral("stateLabel"))->text().contains(QLatin1String("2 GPS, 2 Galileo and 0 GLONASS")), QStringLiteral("Live state line counts each system"));
 
     rx.acq.samplesPerCode = 5000;
     for (int prn : {3, 24, e05, e24}) {

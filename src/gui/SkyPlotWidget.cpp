@@ -92,15 +92,17 @@ void SkyPlotWidget::paintEvent(QPaintEvent*)
         p.setPen(QPen(t.color, 2));
         p.drawPolyline(poly);
     }
-    int gps = 0, galileo = 0;
+    int gps = 0, galileo = 0, glonass = 0;
     for (const Sat& s : sats_) {
         if (s.el < -5) continue;
         const QPointF q = project(s.az, s.el);
         const bool gal = gnss::isGalileo(s.prn);
-        if (s.filled) ++(gal ? galileo : gps);
+        const bool glo = gnss::isGlonass(s.prn);
+        if (s.filled) ++(glo ? glonass : gal ? galileo : gps);
         p.setPen(QPen(s.color.darker(150), 1.5));
         p.setBrush(s.filled ? s.color : palette().color(QPalette::Base));
-        if (gal) p.drawRoundedRect(QRectF(q.x() - 12, q.y() - 10, 24, 20), 3, 3);
+        if (glo) p.drawPolygon(QPolygonF({QPointF(q.x(), q.y() - 15), QPointF(q.x() + 16, q.y() + 11), QPointF(q.x() - 16, q.y() + 11)}));
+        else if (gal) p.drawRoundedRect(QRectF(q.x() - 12, q.y() - 10, 24, 20), 3, 3);
         else p.drawEllipse(q, 10, 10);
         p.setPen(s.filled ? Qt::white : text);
         QFont f = font();
@@ -112,9 +114,11 @@ void SkyPlotWidget::paintEvent(QPaintEvent*)
     }
     if (!sats_.isEmpty()) {
         const int lh = fm.height() + 4;
-        const QPointF a(12, height() - 2 * lh), b(12, height() - lh);
+        const QPointF t(12, height() - 3 * lh), a(12, height() - 2 * lh), b(12, height() - lh);
         p.setPen(QPen(text, 1));
         p.setBrush(Qt::NoBrush);
+        p.drawPolygon(QPolygonF({t + QPointF(0, -6), t + QPointF(6, 5), t + QPointF(-6, 5)}));
+        p.drawText(QPointF(24, t.y() + fm.ascent() / 2.0 - 1), tr("GLONASS: %1").arg(glonass));
         p.drawEllipse(a, 5, 5);
         p.drawRoundedRect(QRectF(b.x() - 6, b.y() - 5, 12, 10), 2, 2);
         p.drawText(QPointF(24, a.y() + fm.ascent() / 2.0 - 1), tr("GPS: %1").arg(gps));

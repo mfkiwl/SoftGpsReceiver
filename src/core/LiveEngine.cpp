@@ -184,7 +184,26 @@ void LiveEngine::acquisitionLoop()
         // longer Galileo search where to look. Each starts from the newest samples.
         if (s_.useGps()) searchFor(false);
         if (s_.useGalileo() && !stop_.load()) searchFor(true);
+        if (s_.useGlonass() && !stop_.load()) searchGlonass();
     }
+}
+
+void LiveEngine::searchGlonass()
+{
+    const double fs = s_.samplingFreq;
+    ReceiverSettings a = s_;
+    a.acqStartMs = int(double(src_->numSamples() - qint64(0.2 * fs)) / fs * 1000.0) + 1;
+    AcquisitionOutput out = Acquisition::run(*src_, a, &stop_, nullptr);
+    if (stop_.load() || !out.error.isEmpty()) return;
+    const qint64 first = qint64(std::llround(a.acqStartMs * fs / 1000.0));
+    QMutexLocker lock(&acqMutex_);
+    for (AcqResult& r : out.results) {
+        r.startSample = first;
+        if (r.acquired && !trackedSats_.contains(r.prn)) newlyAcquired_.push_back(r);
+        acqBySat_[r.prn] = r;
+    }
+    ++acqCycles_;
+    acqDirty_ = true;
 }
 
 void LiveEngine::searchFor(bool galileo)
@@ -331,7 +350,7 @@ void LiveEngine::adoptAcquisitions()
                                          [&r](const std::unique_ptr<Channel>& c) { return c->prn == r.prn; });
         if (already) continue;
         int used = 0;
-        for (const auto& c : channels_) used += isGalileo(c->prn) == isGalileo(r.prn) ? 1 : 0;
+        for (const auto& c : channels_) used += isGalileo(c->prn) == isGalileo(r.prn) && isGlonass(c->prn) == isGlonass(r.prn) ? 1 : 0;
         if (used >= s_.numChannels) continue;
         const qint64 startSample = r.startSample + r.codePhase;
         if (startSample < src_->oldestSample()) {                   // the data scrolled out while searching
@@ -467,7 +486,7 @@ void LiveEngine::publish(qint64 head, bool last)
         cs.ageSec = double(channels_[i]->tracker->nextSample() - channels_[i]->startSample) / s_.samplingFreq;
         if (t.numMs > 0) {
             cs.cn0 = t.cn0.back();
-            cs.doppler = t.carrFreq.back() - s_.ifFreq;
+            cs.doppler = t.carrFreq.back() - s_.carrierIf(t.prn);
             cs.pli = t.pli.back();
         }
         // A satellite picked up again does not have to wait a whole frame for its orbit
@@ -481,7 +500,7 @@ void LiveEngine::publish(qint64 head, bool last)
             }
         }
         cs.ephemeris = n.eph.complete();
-        cs.subframes = n.parityOkWords / (isGalileo(t.prn) ? 1 : 10);
+        cs.subframes = n.parityOkWords / (isGalileo(t.prn) || isGlonass(t.prn) ? 1 : 10);
         if (cs.ageSec < 1.5) cs.state = QStringLiteral("Pull-in");
         else if (!n.bitSyncOk) cs.state = QStringLiteral("Bit sync");
         else if (!n.timingValid) cs.state = QStringLiteral("Finding frame");
@@ -495,7 +514,7 @@ void LiveEngine::publish(qint64 head, bool last)
             log(QStringLiteral("Channel %1: dropping %2, no verified data for %3 s").arg(t.channel).arg(satName(t.prn)).arg(unverified, 0, 'f', 0));
             channels_[i]->remove = true;
         }
-        if (!isGalileo(t.prn) && t.numMs > 0 && n.bitSyncOk) {
+        if (!isGalileo(t.prn) && !isGlonass(t.prn) && t.numMs > 0 && n.bitSyncOk) {
             commonSum += cs.doppler;
             ++commonCnt;
         }

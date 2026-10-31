@@ -23,6 +23,7 @@ QString sampleFormatName(SampleFormat f)
 
 QString satName(int id)
 {
+    if (isGlonass(id)) return QStringLiteral("R%1%2").arg(svidOf(id) < 0 ? '-' : '+').arg(std::abs(svidOf(id)));
     if (isGalileo(id)) return QStringLiteral("E%1").arg(svidOf(id), 2, 10, QLatin1Char('0'));
     return QStringLiteral("PRN %1").arg(id);
 }

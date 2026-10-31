@@ -48,6 +48,7 @@ struct SatObservation
     double predDoppler = 0;      // -predRangeRate / lambda (Hz)
     double rateResidual = 0;     // velocity solution residual (m/s)
     double cn0 = 0, pli = 0;
+    double wavelength = kL1Wavelength;   // GLONASS: of its frequency channel
     double adrCycles = 0;
     int health = 0;
 };

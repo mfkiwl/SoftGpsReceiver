@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Constants.h"
+
 #include <QString>
 #include <QVector>
 
@@ -17,7 +19,7 @@ QString sampleFormatName(SampleFormat f);
 enum class DopplerSign { Auto = 0, Normal, Inverted };
 
 // Which signals are searched, tracked and used in the position fix.
-enum class Constellations { GpsGalileo = 0, GpsOnly, GalileoOnly };
+enum class Constellations { GpsGalileo = 0, GpsOnly, GalileoOnly, GlonassOnly };
 
 // "PRN 5" for GPS, "E30" for Galileo (see the satellite ids in Constants.h).
 QString satName(int id);
@@ -111,8 +113,15 @@ struct ReceiverSettings
     int bytesPerSample() const;                   // per (complex) sample; 1 for packed samples
     QVector<int> prnList() const;
     double dopplerSignValue() const;              // +1 / -1 (Auto -> +1)
-    bool useGps() const { return constellations != Constellations::GalileoOnly; }
-    bool useGalileo() const { return constellations != Constellations::GpsOnly; }
+    bool useGps() const { return constellations == Constellations::GpsGalileo || constellations == Constellations::GpsOnly; }
+    bool useGalileo() const { return constellations == Constellations::GpsGalileo || constellations == Constellations::GalileoOnly; }
+    bool useGlonass() const { return constellations == Constellations::GlonassOnly; }
+    // IF of a GLONASS frequency channel. In a GLONASS-only file the IF is that of channel 0; otherwise it is that of L1.
+    double carrierIf(int id) const { return isGlonass(id) ? glonassIf(glonassChannel(id)) : ifFreq; }
+    double glonassIf(int channel) const
+    {
+        return ifFreq + (useGlonass() ? 0.0 : kGlonassL1Base - kL1Freq) + channel * kGlonassL1Step;
+    }
 
     // Extract the sampling and IF frequencies from a file name such as
     // "GPSdata-DiscreteComponents-fs38_192-if9_55.bin" (values in MHz).

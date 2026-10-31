@@ -32,6 +32,11 @@ bool Receiver::openFile(const QString& path, QString* error)
         settings.format = fmt;
     }
     settings.fileName = path;
+    // A GLONASS recording is centred on a different frequency, so nothing else could be in it
+    if (QFileInfo(path).fileName().contains(QLatin1String("glonass"), Qt::CaseInsensitive))
+        settings.constellations = Constellations::GlonassOnly;
+    else if (settings.useGlonass())
+        settings.constellations = Constellations::GpsGalileo;
     if (!source.open(path, settings.format, settings.skipBytes, error)) return false;
     log(QStringLiteral("Opened %1 (%2 MB, %3 samples, %4 s)")
             .arg(QFileInfo(path).fileName())
@@ -140,11 +145,12 @@ bool Receiver::runTracking()
     // Strongest first, up to numChannels per constellation: the two metrics are not comparable
     std::sort(sel.begin(), sel.end(), [](const AcqResult* a, const AcqResult* b) {
         if (isGalileo(a->prn) != isGalileo(b->prn)) return isGalileo(b->prn);
+        if (isGlonass(a->prn) != isGlonass(b->prn)) return isGlonass(b->prn);
         return a->metric > b->metric;
     });
-    int nGps = 0, nGal = 0;
+    int nGps = 0, nGal = 0, nGlo = 0;
     sel.erase(std::remove_if(sel.begin(), sel.end(), [&](const AcqResult* r) {
-        return ++(isGalileo(r->prn) ? nGal : nGps) > settings.numChannels;
+        return ++(isGlonass(r->prn) ? nGlo : isGalileo(r->prn) ? nGal : nGps) > settings.numChannels;
     }), sel.end());
     if (sel.empty()) { log(QStringLiteral("No satellites to track")); return false; }
 

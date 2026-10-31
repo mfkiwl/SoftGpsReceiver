@@ -100,6 +100,56 @@ SatState satState(const Ephemeris& e, double t, std::vector<KeplerStep>* steps)
     return st;
 }
 
+namespace {
+
+void glonassRates(const double y[6], const double acc[3], double out[6])
+{
+    constexpr double mu = 398600.4418e9, ae = 6378136.0, j2 = 1.08262575e-3, w = 7.292115e-5;
+    const double r2 = y[0] * y[0] + y[1] * y[1] + y[2] * y[2], r = std::sqrt(r2), r3 = r2 * r;
+    const double a = 1.5 * j2 * mu * ae * ae / (r2 * r3);
+    const double b = 5.0 * y[2] * y[2] / r2;
+    const double k = -mu / r3 - a * (1.0 - b);
+    out[0] = y[3]; out[1] = y[4]; out[2] = y[5];
+    out[3] = (k + w * w) * y[0] + 2.0 * w * y[4] + acc[0];
+    out[4] = (k + w * w) * y[1] - 2.0 * w * y[3] + acc[1];
+    out[5] = (k - 2.0 * a) * y[2] + acc[2];
+}
+
+} // namespace
+
+SatState glonassState(const GlonassEphemeris& e, double t)
+{
+    double y[6] = {e.pos[0], e.pos[1], e.pos[2], e.vel[0], e.vel[1], e.vel[2]};
+    const double span = t - e.tb;
+    const int n = std::max(1, int(std::ceil(std::fabs(span) / 30.0)));
+    const double h = span / n;
+    for (int s = 0; s < n; ++s) {                            // fourth-order Runge-Kutta
+        double k1[6], k2[6], k3[6], k4[6], w[6];
+        glonassRates(y, e.acc, k1);
+        for (int i = 0; i < 6; ++i) w[i] = y[i] + 0.5 * h * k1[i];
+        glonassRates(w, e.acc, k2);
+        for (int i = 0; i < 6; ++i) w[i] = y[i] + 0.5 * h * k2[i];
+        glonassRates(w, e.acc, k3);
+        for (int i = 0; i < 6; ++i) w[i] = y[i] + h * k3[i];
+        glonassRates(w, e.acc, k4);
+        for (int i = 0; i < 6; ++i) y[i] += h / 6.0 * (k1[i] + 2.0 * k2[i] + 2.0 * k3[i] + k4[i]);
+    }
+    SatState st;
+    st.pos = Vec3(y[0], y[1], y[2]);
+    st.vel = Vec3(y[3], y[4], y[5]);
+    st.tk = span;
+    st.clockBias = -e.tauN + e.gammaN * span;
+    st.clockDrift = e.gammaN;
+    return st;
+}
+
+double glonassTime(const GlonassEphemeris& e, double tsv, double* clockBias)
+{
+    const double bias = -e.tauN + e.gammaN * (tsv - e.tb);
+    if (clockBias) *clockBias = bias;
+    return tsv - bias;
+}
+
 double correctedTransmitTime(const Ephemeris& e, double tsv, double* clockBias)
 {
     double t = tsv;

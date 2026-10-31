@@ -162,7 +162,7 @@ void TrackingPage::showChannel()
     const double fllOff = s.fllAssistMs * 1e-3;
     ui->pllPlot->addSeries(tr("raw"), x, toQ(t.pllDisc), PlotWidget::Lines, cP, 1.0);
     ui->pllPlot->addVLine(fllOff, cO, tr("FLL assist off"));
-    ui->dopplerPlot->addSeries(tr("carrier - IF"), x, toQ(t.carrFreq, 1.0, -s.ifFreq), PlotWidget::Lines, cI, 1.2);
+    ui->dopplerPlot->addSeries(tr("carrier - IF"), x, toQ(t.carrFreq, 1.0, -s.carrierIf(t.prn)), PlotWidget::Lines, cI, 1.2);
     ui->dopplerPlot->addVLine(fllOff, cO, tr("FLL off"));
     ui->fllPlot->addSeries(tr("FLL error"), x, toQ(t.fllDisc), PlotWidget::Lines, cO, 1.0);
     ui->fllPlot->addVLine(fllOff, cP, tr("assist off"));
@@ -186,7 +186,6 @@ void TrackingPage::fillAllChannels()
 {
     for (PlotWidget* p : {ui->allCn0Plot, ui->allDopplerPlot, ui->allPliPlot, ui->allDllPlot}) p->clear();
     if (!readable(Receiver::StageTracked)) return;
-    const double fif = rx_->settings.ifFreq;
     for (size_t i = 0; i < rx_->trk.size(); ++i) {
         const TrackingChannel& t = rx_->trk[i];
         if (!t.valid) continue;
@@ -194,7 +193,7 @@ void TrackingPage::fillAllChannels()
         const QColor c = seriesColor(int(i));
         const QString name = satName(t.prn);
         ui->allCn0Plot->addSeries(name, x, toQ(t.cn0), PlotWidget::Lines, c, 1.2);
-        ui->allDopplerPlot->addSeries(name, x, toQ(t.carrFreq, 1.0, -fif), PlotWidget::Lines, c, 1.2);
+        ui->allDopplerPlot->addSeries(name, x, toQ(t.carrFreq, 1.0, -rx_->settings.carrierIf(t.prn)), PlotWidget::Lines, c, 1.2);
         ui->allPliPlot->addSeries(name, x, toQ(t.pli), PlotWidget::Lines, c, 1.0);
         QVector<double> bx, by;
         for (int k = 0; k + 100 <= t.numMs; k += 100) {
@@ -228,7 +227,7 @@ void TrackingPage::fillSummary()
         sum->setNum(i, 3, double(t.startSample), 0);
         sum->setNum(i, 4, t.numMs * t.periodMs, 0);
         sum->setNum(i, 5, t.initCarrFreq, 2);
-        sum->setNum(i, 6, t.initCarrFreq - s.ifFreq, 2);
+        sum->setNum(i, 6, t.initCarrFreq - s.carrierIf(t.prn), 2);
         sum->setNum(i, 7, t.finalDoppler, 2);
         const int from = std::min(t.numMs - 1, std::max(0, s.bitSyncStartMs / t.periodMs));
         double rate = 0, mn = 1e9, ep = 0, ed = 0;

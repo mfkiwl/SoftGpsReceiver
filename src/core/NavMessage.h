@@ -148,6 +148,17 @@ struct PageRecord
     bool parityOk = false;
 };
 
+// GLONASS immediate data: a state vector instead of Keplerian elements, in the PZ-90 frame (metres and seconds)
+struct GlonassEphemeris
+{
+    bool valid = false;
+    int channel = 0, slot = 0, health = 0;
+    int dayNumber = 0, fourYear = 0;
+    double tb = 0;               // reference time, seconds of the day in GLONASS time
+    double pos[3] = {0, 0, 0}, vel[3] = {0, 0, 0}, acc[3] = {0, 0, 0};
+    double tauN = 0, gammaN = 0, tauC = 0;
+};
+
 struct NavChannel
 {
     int channel = 0;
@@ -184,6 +195,7 @@ struct NavChannel
         return it != verifiedMs.end() && *it <= int(ms) + verifySpan;
     }
     Ephemeris eph;
+    GlonassEphemeris glo;
 
     // timing: transmit time of the code epoch at tracking index refMs
     bool timingValid = false;

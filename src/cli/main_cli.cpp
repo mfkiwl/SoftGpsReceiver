@@ -131,7 +131,7 @@ int main(int argc, char** argv)
         else if (args[i] == "--gnss") {
             const QString g = args[++i];
             rx.settings.constellations = g == "gps" ? Constellations::GpsOnly
-                                         : g == "gal" ? Constellations::GalileoOnly : Constellations::GpsGalileo;
+                                         : g == "gal" ? Constellations::GalileoOnly : g == "glo" ? Constellations::GlonassOnly : Constellations::GpsGalileo;
         }
         else if (args[i] == "--csv") csv = args[++i];
         else if (args[i] == "--speed") ls.replaySpeed = args[++i].toDouble();

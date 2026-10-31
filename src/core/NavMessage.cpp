@@ -1,4 +1,5 @@
 #include "NavMessage.h"
+#include "GlonassNav.h"
 #include "GalileoNav.h"
 #include "Constants.h"
 
@@ -652,6 +653,7 @@ void assembleEphemeris(NavChannel& nc)
 
 NavChannel decodeChannel(const TrackingChannel& trk, const ReceiverSettings& s)
 {
+    if (isGlonass(trk.prn)) return glo::decodeChannel(trk, s);
     if (isGalileo(trk.prn)) return inav::decodeChannel(trk, s);
     NavChannel nc;
     nc.channel = trk.channel;

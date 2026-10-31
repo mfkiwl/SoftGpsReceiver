@@ -33,6 +33,8 @@ add_library(gnsscore STATIC
     src/core/Fft.h                 src/core/Fft.cpp
     src/core/CaCode.h              src/core/CaCode.cpp
     src/core/GalileoCodes.h        src/core/GalileoCodes.cpp
+    src/core/GlonassCode.h         src/core/GlonassCode.cpp
+    src/core/GlonassNav.h          src/core/GlonassNav.cpp
     src/core/GalileoNav.h          src/core/GalileoNav.cpp
     src/core/SignalAnalysis.h      src/core/SignalAnalysis.cpp
     src/core/Acquisition.h         src/core/Acquisition.cpp
@@ -140,6 +142,11 @@ if(GNSS_BUILD_TESTS)
     qt_add_executable(test_galileo tests/test_galileo.cpp)
     target_link_libraries(test_galileo PRIVATE gnsscore)
     add_test(NAME test_galileo COMMAND test_galileo)
+    qt_add_executable(test_glonass tests/test_glonass.cpp)
+    target_link_libraries(test_glonass PRIVATE gnsscore)
+    add_test(NAME test_glonass COMMAND test_glonass)
+    qt_add_executable(gen_glonass tests/gen_glonass.cpp)
+    target_link_libraries(gen_glonass PRIVATE gnsscore)
 
     # Adds simulated Galileo satellites to a GPS recording (see add_galileo.cpp)
     qt_add_executable(add_galileo tests/add_galileo.cpp)

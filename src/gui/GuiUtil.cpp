@@ -76,25 +76,27 @@ QColor prnColor(int prn)
 
 QString satLabel(int id)
 {
-    return gnss::isGalileo(id) ? gnss::satName(id) : QString::number(id);
+    return gnss::isGalileo(id) || gnss::isGlonass(id) ? gnss::satName(id) : QString::number(id);
 }
 
 QString satSystem(int id)
 {
-    return gnss::isGalileo(id) ? QStringLiteral("Galileo") : QStringLiteral("GPS");
+    return gnss::isGlonass(id) ? QStringLiteral("GLONASS") : gnss::isGalileo(id) ? QStringLiteral("Galileo") : QStringLiteral("GPS");
 }
 QString satFullName(int id)
 {
-    return gnss::isGalileo(id) ? QStringLiteral("Galileo %1").arg(gnss::satName(id)) : QStringLiteral("GPS %1").arg(gnss::satName(id));
+    return satSystem(id) + QLatin1Char(' ') + gnss::satName(id);
 }
 double satAxis(int id)
 {
+    if (gnss::isGlonass(id)) return 80.0 + gnss::svidOf(id);        // channels -7..+6 at 73..86
     return gnss::isGalileo(id) ? 35.0 + gnss::svidOf(id) : double(id);
 }
 QString satAxisText(double x)
 {
     const int n = int(std::lround(x));
     if (std::fabs(x - n) > 1e-6) return QString();
+    if (n >= 73 && n <= 86) return gnss::satName(gnss::glonassId(n - 80));
     if (n >= 36 && n <= 71) return gnss::satName(gnss::kGalileoIdBase + n - 35);
     return n >= 1 && n <= 32 ? QString::number(n) : QString();
 }

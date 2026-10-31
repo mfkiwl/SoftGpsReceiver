@@ -112,9 +112,9 @@ void LivePage::setStatus(const LiveStatus& st, const std::vector<LiveChannelStat
     ui->recordValue->setText(st.recordFile.isEmpty() ? tr("off")
                                                      : tr("%1 (%2 MB)").arg(QFileInfo(st.recordFile).fileName())
                                                            .arg(st.recordedBytes / 1048576.0, 0, 'f', 0));
-    int gps = 0, galileo = 0;
-    for (const LiveChannelStatus& c : channels) ++(isGalileo(c.prn) ? galileo : gps);
-    ui->stateLabel->setText(st.running ? tr("Running: %1 GPS and %2 Galileo channels, %3 with orbit and timing").arg(gps).arg(galileo).arg(st.usable)
+    int gps = 0, galileo = 0, glonass = 0;
+    for (const LiveChannelStatus& c : channels) ++(isGlonass(c.prn) ? glonass : isGalileo(c.prn) ? galileo : gps);
+    ui->stateLabel->setText(st.running ? tr("Running: %1 GPS, %2 Galileo and %3 GLONASS channels, %4 with orbit and timing").arg(gps).arg(galileo).arg(glonass).arg(st.usable)
                                        : tr("Stopped"));
     ui->ttffValue->setText(st.ttffSec >= 0 ? tr("%1 s").arg(st.ttffSec, 0, 'f', 1) : tr("waiting for a fix"));
 

@@ -49,11 +49,14 @@ void buildObservations(NavSolution& sol, const std::vector<int>& usable, const s
         o.pli = t.pli[size_t(m)];
         o.carrFreq = t.carrFreq[size_t(m)] + fr * (t.carrFreq[size_t(m + 1)] - t.carrFreq[size_t(m)]);
         o.adrCycles = t.adr[size_t(m)] + fr * (t.adr[size_t(m + 1)] - t.adr[size_t(m)]);
-        o.doppler = o.carrFreq - s.ifFreq;
+        const bool glo = isGlonass(t.prn);
+        o.doppler = o.carrFreq - (glo ? s.glonassIf(glonassChannel(t.prn)) : s.ifFreq);
+        if (glo) o.wavelength = c / glonassFreq(glonassChannel(t.prn));
 
+        // GLONASS-only solutions run on GLONASS time, in seconds of the day, in place of GPS time of week
         double bias = 0;
-        o.txTimeGps = orbit::correctedTransmitTime(n.eph, o.txTime, &bias);
-        const SatState st = orbit::satState(n.eph, o.txTimeGps);
+        o.txTimeGps = glo ? orbit::glonassTime(n.glo, o.txTime, &bias) : orbit::correctedTransmitTime(n.eph, o.txTime, &bias);
+        const SatState st = glo ? orbit::glonassState(n.glo, o.txTimeGps) : orbit::satState(n.eph, o.txTimeGps);
         o.satClock = st.clockBias;
         o.satClockRel = st.relativistic;
         o.tgd = n.eph.tgd;
@@ -251,7 +254,7 @@ double velocityFix(NavSolution& sol, double sign, bool store)
         if (!o.used) continue;
         const Vec3 d = o.satPos - sol.pos;
         const Vec3 u = d / d.norm();
-        const double prRate = -kL1Wavelength * sign * o.doppler + c * o.satClkDrift;
+        const double prRate = -o.wavelength * sign * o.doppler + c * o.satClkDrift;
         H.push_back({-u.x, -u.y, -u.z, 1.0});
         y.push_back(prRate - o.satVel.dot(u));
         w.push_back(1.0);
@@ -277,9 +280,9 @@ double velocityFix(NavSolution& sol, double sign, bool store)
             SatObservation& o = sol.obs[size_t(rows[r])];
             const Vec3 d = o.satPos - sol.pos;
             const Vec3 u = d / d.norm();
-            o.prRate = -kL1Wavelength * sign * o.doppler + c * o.satClkDrift;
+            o.prRate = -o.wavelength * sign * o.doppler + c * o.satClkDrift;
             o.predRangeRate = (o.satVel - sol.vel).dot(u);
-            o.predDoppler = -o.predRangeRate / kL1Wavelength;
+            o.predDoppler = -o.predRangeRate / o.wavelength;
             double pred = 0;
             for (int i = 0; i < 4; ++i) pred += H[r][i] * x[i];
             o.rateResidual = y[r] - pred;

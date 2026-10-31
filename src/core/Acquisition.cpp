@@ -3,12 +3,14 @@
 #include "Constants.h"
 #include "Fft.h"
 #include "GalileoCodes.h"
+#include "GlonassCode.h"
 
 #include <QElapsedTimer>
 #include <QtConcurrent/QtConcurrentMap>
 
 #include <algorithm>
 #include <cmath>
+#include <complex>
 #include <numeric>
 
 namespace gnss {
@@ -460,6 +462,125 @@ void acquireCa(const SignalSource& src, const ReceiverSettings& s, AcquisitionOu
     });
 }
 
+// GLONASS L1OF search: one code, so each frequency channel is searched for it around its own IF
+void acquireG1(const SignalSource& src, const ReceiverSettings& s, AcquisitionOutput& out, const std::atomic<bool>* cancel)
+{
+    const double fs = s.samplingFreq;
+    const int N = int(std::llround(fs / 1000.0));
+    const int K = std::max(1, s.acqNonCoherent);
+    constexpr int kFineMs = 40, kFineBlockMs = 10;
+    const qint64 start = qint64(std::llround(s.acqStartMs * fs / 1000.0));
+    const int total = N * std::max(K, kFineMs);
+    std::vector<float> sI(total), sQ(total);
+    const int got = src.read(start, total, sI.data(), sQ.data());
+    if (got < total) {
+        out.error = QStringLiteral("Not enough data for acquisition");
+        return;
+    }
+    double mi = 0, mq = 0;
+    for (int i = 0; i < got; ++i) { mi += sI[i]; mq += sQ[i]; }
+    for (int i = 0; i < got; ++i) { sI[i] -= float(mi / got); sQ[i] -= float(mq / got); }
+
+    out.samplesPerCode = N;
+    out.startSample = start;
+    out.nonCoherent = K;
+    out.fftSize = N;
+    const auto chips = GlonassCode::chips();
+    std::vector<float> rep(N);
+    std::vector<cplx> spec(N);
+    for (int n = 0; n < N; ++n) {
+        rep[n] = chips[size_t(int(std::floor(n * kGlonassChipRate / fs)) % kGlonassCodeLength)];
+        spec[n] = cplx(rep[n], 0);
+    }
+    { Fft fft(N); fft.forward(spec); }
+    for (cplx& v : spec) v = std::conj(v);
+
+    const int nBins = int(std::floor(2.0 * s.acqSearchBand / s.acqStep + 1e-6)) + 1;
+    std::vector<AcqResult> found(kGlonassMaxChannel - kGlonassMinChannel + 1);
+    std::vector<int> idx(found.size());
+    std::iota(idx.begin(), idx.end(), 0);
+    QtConcurrent::blockingMap(idx, [&](const int& i) {
+        if (cancel && cancel->load()) return;
+        AcqResult& r = found[size_t(i)];
+        const int channel = kGlonassMinChannel + i;
+        const double centre = s.glonassIf(channel);
+        r.prn = glonassId(channel);
+        Fft fft(N);
+        std::vector<cplx> X(N), Y(N);
+        std::vector<float> row(N), best(N);
+        double bestPeak = -1, bestFreq = centre;
+        for (int b = 0; b < nBins; ++b) {
+            const double f = centre - s.acqSearchBand + b * s.acqStep;
+            const double w = -kTwoPi * f / fs;
+            std::fill(row.begin(), row.end(), 0.0f);
+            for (int k = 0; k < K; ++k) {
+                for (int n = 0; n < N; ++n) {
+                    const double p = w * double(k * N + n), c = std::cos(p), sn = std::sin(p);
+                    const double x = sI[k * N + n], y = sQ[k * N + n];
+                    X[n] = cplx(x * c - y * sn, x * sn + y * c);
+                }
+                fft.forward(X);
+                for (int n = 0; n < N; ++n) Y[n] = cmul(X[n], spec[n]);
+                fft.inverse(Y);
+                for (int n = 0; n < N; ++n) row[n] += float(std::norm(Y[n]));
+            }
+            const double peak = *std::max_element(row.begin(), row.end());
+            if (peak > bestPeak) { bestPeak = peak; bestFreq = f; best = row; r.peakBin = b; }
+        }
+        const int tau = int(std::max_element(best.begin(), best.end()) - best.begin());
+        const double spc = N / double(kGlonassCodeLength);
+        const int excl = int(std::ceil(spc));
+        double second = 0, sum = 0;
+        int cnt = 0;
+        for (int n = 0; n < N; ++n) {
+            int d = std::abs(n - tau);
+            d = std::min(d, N - d);
+            if (d > excl) second = std::max(second, double(best[n]));
+            if (d > 2 * excl) { sum += best[n]; ++cnt; }
+        }
+        r.peak = bestPeak;
+        r.secondPeak = second;
+        r.noiseMean = cnt ? sum / cnt : 0;
+        r.metric = second > 0 ? bestPeak / second : 0;
+        r.cn0 = 10.0 * std::log10(std::max(r.noiseMean > 0 ? (bestPeak - r.noiseMean) / r.noiseMean : 0, 1e-3) / 1e-3);
+        r.codePhase = tau;
+        r.codePhaseChips = tau / spc;
+        r.coarseFreq = bestFreq;
+        r.acquired = r.metric > s.acqThreshold;
+        r.fineFreq = bestFreq;
+        if (r.acquired) {
+            // Fine frequency from 1 ms correlations, in 10 ms blocks summed by power so that bit edges matter little
+            std::vector<std::complex<double>> ms(kFineMs);
+            const double w = -kTwoPi * bestFreq / fs;
+            for (int m = 0; m < kFineMs; ++m) {
+                std::complex<double> v = 0;
+                for (int n = 0; n < N; ++n) {
+                    const int q = m * N + n;
+                    const double p = w * double(q);
+                    const double code = rep[size_t(((n - tau) % N + N) % N)];
+                    v += code * std::complex<double>(sI[q], sQ[q]) * std::complex<double>(std::cos(p), std::sin(p));
+                }
+                ms[size_t(m)] = v;
+            }
+            double top = -1;
+            for (double df = -350; df <= 350; df += 5) {
+                double power = 0;
+                for (int b = 0; b + kFineBlockMs <= kFineMs; b += kFineBlockMs) {
+                    std::complex<double> v = 0;
+                    for (int m = 0; m < kFineBlockMs; ++m) {
+                        const double p = -kTwoPi * df * (b + m) * 1e-3;
+                        v += ms[size_t(b + m)] * std::complex<double>(std::cos(p), std::sin(p));
+                    }
+                    power += std::norm(v);
+                }
+                if (power > top) { top = power; r.fineFreq = bestFreq + df; r.fineDelta = df; }
+            }
+        }
+        r.doppler = r.fineFreq - centre;
+    });
+    out.results.insert(out.results.end(), std::make_move_iterator(found.begin()), std::make_move_iterator(found.end()));
+}
+
 } // namespace
 
 AcquisitionOutput Acquisition::run(const SignalSource& src, const ReceiverSettings& s,
@@ -478,6 +599,7 @@ AcquisitionOutput Acquisition::run(const SignalSource& src, const ReceiverSettin
     };
     if (s.useGps()) acquireCa(src, s, out, cancel, part(0));
     if (out.error.isEmpty() && s.useGalileo()) acquireE1(src, s, out, cancel, part(50));
+    if (out.error.isEmpty() && s.useGlonass()) acquireG1(src, s, out, cancel);
     if (progress) progress(100);
     out.elapsedSec = timer.elapsed() / 1000.0;
     return out;

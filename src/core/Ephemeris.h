@@ -37,6 +37,12 @@ SatState satState(const Ephemeris& e, double t, std::vector<KeplerStep>* steps =
 // Satellite clock correction for a satellite-time tag t_sv; returns the corrected GPS time.
 double correctedTransmitTime(const Ephemeris& e, double tsv, double* clockBias = nullptr);
 
+// GLONASS: state at system time t (s of day) by integrating the broadcast state vector from tb, in PZ-90, which is
+// taken as equal to WGS-84 (they differ by decimetres).
+SatState glonassState(const GlonassEphemeris& e, double t);
+// System time from a satellite-time tag; *clockBias is tsv minus that time
+double glonassTime(const GlonassEphemeris& e, double tsv, double* clockBias = nullptr);
+
 // Almanac-based position (no harmonic corrections) for sky-plot prediction.
 Vec3 almanacPosition(const AlmanacEntry& a, double t);
 

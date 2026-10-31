@@ -32,7 +32,20 @@ constexpr int    kInavPartSymbols = 250;                 // symbols in a 1 s I/N
 constexpr int    kGalileoIdBase  = 100;
 constexpr int    kGalileoMaxSv   = 36;                   // SVIDs with assigned codes
 
-constexpr bool isGalileo(int id) { return id > kGalileoIdBase; }
-constexpr int svidOf(int id) { return isGalileo(id) ? id - kGalileoIdBase : id; }
+// GLONASS L1OF shares one code and separates satellites by frequency, so a GLONASS id is 200 + channel + 8: the
+// frequency channels -7..+6 become 201..214. Satellites on opposite sides of the Earth share a channel.
+constexpr int    kGlonassIdBase  = 200;
+constexpr int    kGlonassMinChannel = -7, kGlonassMaxChannel = 6;
+constexpr int    kGlonassCodeLength = 511;               // chips
+constexpr double kGlonassChipRate = 0.511e6;             // chips/s
+constexpr double kGlonassL1Base  = 1602.0e6;             // Hz, channel 0
+constexpr double kGlonassL1Step  = 0.5625e6;             // Hz per channel
+
+constexpr bool isGlonass(int id) { return id > kGlonassIdBase; }
+constexpr bool isGalileo(int id) { return id > kGalileoIdBase && id <= kGlonassIdBase; }
+constexpr int glonassId(int channel) { return kGlonassIdBase + channel + 8; }
+constexpr int glonassChannel(int id) { return id - kGlonassIdBase - 8; }
+constexpr double glonassFreq(int channel) { return kGlonassL1Base + channel * kGlonassL1Step; }
+constexpr int svidOf(int id) { return isGlonass(id) ? glonassChannel(id) : isGalileo(id) ? id - kGalileoIdBase : id; }
 
 } // namespace gnss

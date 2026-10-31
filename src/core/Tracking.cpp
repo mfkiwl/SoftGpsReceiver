@@ -2,6 +2,7 @@
 #include "CaCode.h"
 #include "Constants.h"
 #include "GalileoCodes.h"
+#include "GlonassCode.h"
 
 #include <QElapsedTimer>
 
@@ -91,6 +92,7 @@ void correlate(const float* sI, const float* sQ, int n, double remCode, double c
 // Replica table used by the correlators: one value per chip for C/A, two per chip for BOC(1,1)
 std::vector<int8_t> replicaTable(int prn, bool dataComponent)
 {
+    if (isGlonass(prn)) return GlonassCode::chips();
     if (!isGalileo(prn)) return CaCode::chips(prn);
     return GalileoCode::boc11(dataComponent ? GalileoCode::e1b(svidOf(prn)) : GalileoCode::e1c(svidOf(prn)));
 }
@@ -155,7 +157,13 @@ ChannelTracker::ChannelTracker(const ReceiverSettings& s, const AcqResult& acq, 
     ch.initCarrFreq = acq.fineFreq;
     gal_ = isGalileo(ch.prn);
     periodMs_ = gal_ ? kE1CodeMs : 1;
-    codeLength_ = gal_ ? kE1CodeLength : kCaCodeLength;
+    const bool glo = isGlonass(ch.prn);
+    codeLength_ = gal_ ? kE1CodeLength : glo ? kGlonassCodeLength : kCaCodeLength;
+    chipRate_ = glo ? kGlonassChipRate : kCaChipRate;
+    if (glo) {
+        ifFreq_ = s.glonassIf(glonassChannel(ch.prn));
+        carrToCode_ = glonassFreq(glonassChannel(ch.prn)) / kGlonassChipRate;
+    }
     tableScale_ = gal_ ? 2.0 : 1.0;                       // table entries per chip
     ch.periodMs = periodMs_;
     ch.codeLength = codeLength_;
@@ -182,8 +190,8 @@ ChannelTracker::ChannelTracker(const ReceiverSettings& s, const AcqResult& acq, 
     // Code Doppler reaches about 2 chips/s. A narrow DLL would lag it by more than the width of the
     // BOC(1,1) peak, so E1 always uses carrier aiding, from the first epoch on.
     aiding_ = gal_ || s.carrierAiding;
-    aidRef_ = s.ifFreq + (gal_ ? acq.commonDoppler : 0.0);
-    codeFreq_ = kCaChipRate + (gal_ ? dopSign_ * (carrFreq_ - aidRef_) / kCarrierToCode : 0.0);
+    aidRef_ = ifFreq_ + (gal_ ? acq.commonDoppler : 0.0);
+    codeFreq_ = chipRate_ + (gal_ ? dopSign_ * (carrFreq_ - aidRef_) / carrToCode_ : 0.0);
     cn0Win_ = std::max(20, s.cn0WindowMs / periodMs_);
     pwr_.assign(cn0Win_, 0.0);
     bufI_.resize(size_t(periodMs_ * fs_ / 1000.0 * 1.2) + 64);
@@ -255,8 +263,8 @@ bool ChannelTracker::step(const SignalSource& src, qint64 availableSamples)
     const double ed = (E + Lm) > 0 ? dllGain_ * (E - Lm) / (E + Lm) : 0.0;  // chips
     codeInteg_ += T * wnd_ * wnd_ * ed;
     const double codeNco = codeInteg_ + 2.0 * zd_ * wnd_ * ed;              // chips/s
-    const double aid = aiding_ ? dopSign_ * (carrFreq_ - aidRef_) / kCarrierToCode : 0.0;
-    codeFreq_ = kCaChipRate + codeNco + aid;
+    const double aid = aiding_ ? dopSign_ * (carrFreq_ - aidRef_) / carrToCode_ : 0.0;
+    codeFreq_ = chipRate_ + codeNco + aid;
 
     // ---- BOC(1,1) side peaks. The correlation has smaller peaks half a chip either side of the true one, and the
     // discriminator holds on those too, 0.5 + d/2 chips off. There the correlator nearer the true peak beats the

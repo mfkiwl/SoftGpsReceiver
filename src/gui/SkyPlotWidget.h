@@ -8,7 +8,7 @@
 
 namespace gui {
 
-// Polar azimuth/elevation plot of satellite positions: circles for GPS, squares for Galileo.
+// Polar azimuth/elevation plot of satellite positions: circles for GPS, squares for Galileo, triangles for GLONASS.
 class SkyPlotWidget : public QWidget
 {
     Q_OBJECT
