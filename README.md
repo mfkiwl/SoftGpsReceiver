@@ -76,7 +76,8 @@ least-squares solution can all be watched on the running signal.
 ### Running it
 
 Set the address, sample rate and gain in *Settings > Live*, then press **F10** or *Start live* on the Live tab. Defaults
-are `addr=192.168.10.2`, 5 MS/s at 1575.42 MHz and 30 dB.
+are `addr=192.168.10.2`, 5 MS/s at 1575.42 MHz and 30 dB. Each radio's settings sit in a group of their own on that
+tab: tick a group's title to show them. The group of the chosen live source opens by itself.
 
 * **First fix** takes about 30 to 60 s: a receiver with no stored data has to read a whole orbit from each satellite.
   Satellites are found within seconds, and the channel table shows each one's progress.

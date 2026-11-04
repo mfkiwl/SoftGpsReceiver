@@ -1,8 +1,12 @@
 #include "SettingsDialog.h"
 #include "ui_SettingsDialog.h"
 
+#include <QCoreApplication>
+#include <QGroupBox>
 #include <QPushButton>
+#include <QTimer>
 #include <algorithm>
+#include <utility>
 
 using namespace gnss;
 
@@ -33,7 +37,44 @@ SettingsDialog::SettingsDialog(const ReceiverSettings& s, QWidget* parent)
         d.format = SampleFormat(ui->formatCombo->currentIndex());
         load(d);
     });
+
+    // Each piece of equipment's settings sit in a group whose title box shows or hides them, so that the Live tab
+    // fits on a screen. The group of the chosen live source opens by itself.
+    const std::pair<QGroupBox*, QWidget*> groups[] = {{ui->usrpGroup, ui->usrpBox}, {ui->hackrfGroup, ui->hackrfBox},
+                                                      {ui->smGroup, ui->smBox}, {ui->tcpGroup, ui->tcpBox},
+                                                      {ui->processingGroup, ui->processingBox}};
+    for (const auto& [group, box] : groups) {
+        const QMargins margins = group->layout()->contentsMargins();
+        // Closed, a group is only its title on a line
+        const auto show = [group = group, box = box, margins](bool on) {
+            box->setVisible(on);
+            group->setFlat(!on);
+            group->layout()->setContentsMargins(on ? margins : QMargins());
+        };
+        show(group->isChecked());
+        connect(group, &QGroupBox::toggled, this, [this, show](bool on) {
+            show(on);
+            // A closed group gives its height back. The layouts have to take the change first, or the size hint is
+            // still the old one.
+            QTimer::singleShot(0, this, [this] {
+                QCoreApplication::sendPostedEvents(nullptr, QEvent::LayoutRequest);
+                resize(width(), sizeHint().height());
+            });
+        });
+    }
+    connect(ui->liveSourceCombo, &QComboBox::currentIndexChanged, this, &SettingsDialog::openSourceGroup);
     load(s);
+}
+
+void SettingsDialog::openSourceGroup()
+{
+    switch (LiveSourceKind(ui->liveSourceCombo->currentIndex())) {
+    case LiveSourceKind::Usrp: ui->usrpGroup->setChecked(true); break;
+    case LiveSourceKind::HackRf: ui->hackrfGroup->setChecked(true); break;
+    case LiveSourceKind::SignalHound: ui->smGroup->setChecked(true); break;
+    case LiveSourceKind::GpsSim: ui->tcpGroup->setChecked(true); break;
+    case LiveSourceKind::Replay: ui->processingGroup->setChecked(true); break;      // for the replay speed
+    }
 }
 
 SettingsDialog::~SettingsDialog()
@@ -89,6 +130,7 @@ void SettingsDialog::load(const ReceiverSettings& s)
     ui->dopSignCombo->setCurrentIndex(int(s.dopplerSign));
     const LiveSettings& l = s.live;
     ui->liveSourceCombo->setCurrentIndex(int(l.source));
+    openSourceGroup();      // also when the index did not change
     ui->deviceArgsEdit->setText(l.deviceArgs);
     ui->centerSpin->setValue(l.centerFreq / 1e6);
     ui->rateSpin->setValue(l.sampleRate / 1e6);

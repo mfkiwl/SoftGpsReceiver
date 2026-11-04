@@ -21,6 +21,7 @@ public:
 private:
     void load(const gnss::ReceiverSettings& s);
     void updateDerived();
+    void openSourceGroup();
 
     Ui::SettingsDialog* ui;
     gnss::ReceiverSettings base_;

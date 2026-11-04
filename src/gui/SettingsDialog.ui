@@ -152,82 +152,171 @@
      <!-- ============================================================ Live -->
      <widget class="QWidget" name="liveTab">
       <attribute name="title"><string>Live</string></attribute>
-      <layout class="QFormLayout" name="liveForm">
-       <item row="0" column="0"><widget class="QLabel" name="liveSourceLabel"><property name="text"><string>Live source</string></property></widget></item>
-       <item row="0" column="1">
-        <widget class="QComboBox" name="liveSourceCombo">
-         <item><property name="text"><string>USRP (through the UHD driver)</string></property></item>
-         <item><property name="text"><string>Replay the open recording in real time</string></property></item>
-         <item><property name="text"><string>Signal Hound SM200 (through sm_api.dll)</string></property></item>
-         <item><property name="text"><string>GPSSim simulator (over TCP)</string></property></item>
-         <item><property name="text"><string>HackRF One (through hackrf.dll)</string></property></item>
+      <!-- The settings of each piece of equipment sit in a group whose title box shows or hides them (see
+           SettingsDialog.cpp), so that the tab fits on a screen -->
+      <layout class="QVBoxLayout" name="liveLayout">
+       <item>
+        <layout class="QFormLayout" name="liveForm">
+         <item row="0" column="0"><widget class="QLabel" name="liveSourceLabel"><property name="text"><string>Live source</string></property></widget></item>
+         <item row="0" column="1">
+          <widget class="QComboBox" name="liveSourceCombo">
+           <item><property name="text"><string>USRP (through the UHD driver)</string></property></item>
+           <item><property name="text"><string>Replay the open recording in real time</string></property></item>
+           <item><property name="text"><string>Signal Hound SM200 (through sm_api.dll)</string></property></item>
+           <item><property name="text"><string>GPSSim simulator (over TCP)</string></property></item>
+           <item><property name="text"><string>HackRF One (through hackrf.dll)</string></property></item>
+          </widget>
+         </item>
+         <item row="1" column="0"><widget class="QLabel" name="centerLabel"><property name="text"><string>Centre frequency</string></property></widget></item>
+         <item row="1" column="1"><widget class="QDoubleSpinBox" name="centerSpin"><property name="toolTip"><string>For a USRP or a HackRF</string></property><property name="suffix"><string> MHz</string></property><property name="decimals"><number>6</number></property><property name="minimum"><double>1.000000000000000</double></property><property name="maximum"><double>6000.000000000000000</double></property></widget></item>
+         <item row="2" column="0"><widget class="QLabel" name="rateLabel"><property name="text"><string>Sample rate</string></property></widget></item>
+         <item row="2" column="1"><widget class="QDoubleSpinBox" name="rateSpin"><property name="toolTip"><string>Complex samples per second, for a USRP or a HackRF. GPS works from 2 MS/s, Galileo needs 4 MS/s. The N200 gives 100 MHz divided by an integer and reports the rate it actually set; a HackRF takes any rate from 2 to 20 MS/s.</string></property><property name="suffix"><string> MS/s</string></property><property name="decimals"><number>3</number></property><property name="minimum"><double>0.500000000000000</double></property><property name="maximum"><double>50.000000000000000</double></property><property name="singleStep"><double>0.500000000000000</double></property></widget></item>
+         <item row="3" column="0"><widget class="QLabel" name="loOffsetLabel"><property name="text"><string>LO offset</string></property></widget></item>
+         <item row="3" column="1"><widget class="QDoubleSpinBox" name="loOffsetSpin"><property name="toolTip"><string>Tunes the LO this far from the centre, which keeps its leakage out of the band. A USRP's digital down-converter makes up the difference; with a HackRF the band then sits at this IF.</string></property><property name="suffix"><string> MHz</string></property><property name="decimals"><number>3</number></property><property name="minimum"><double>-100.000000000000000</double></property><property name="maximum"><double>100.000000000000000</double></property></widget></item>
+         <item row="4" column="1"><widget class="QCheckBox" name="recordCheck"><property name="text"><string>Record the samples to disk (20 MB/s at 5 MS/s)</string></property></widget></item>
+         <item row="5" column="0"><widget class="QLabel" name="recordDirLabel"><property name="text"><string>Recording folder</string></property></widget></item>
+         <item row="5" column="1"><widget class="QLineEdit" name="recordDirEdit"/></item>
+        </layout>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="usrpGroup">
+         <property name="title"><string>USRP N200 (UHD)</string></property>
+         <property name="checkable"><bool>true</bool></property>
+         <property name="checked"><bool>false</bool></property>
+         <layout class="QVBoxLayout" name="usrpGroupLayout">
+          <item>
+           <widget class="QWidget" name="usrpBox">
+            <layout class="QFormLayout" name="usrpForm">
+             <property name="leftMargin"><number>0</number></property><property name="topMargin"><number>0</number></property><property name="rightMargin"><number>0</number></property><property name="bottomMargin"><number>0</number></property>
+             <item row="0" column="0"><widget class="QLabel" name="deviceArgsLabel"><property name="text"><string>Device address</string></property></widget></item>
+             <item row="0" column="1"><widget class="QLineEdit" name="deviceArgsEdit"><property name="toolTip"><string>UHD device arguments, e.g. addr=192.168.10.2 (the N200 default). recv_buff_size=50000000 can be appended to help against overflows.</string></property></widget></item>
+             <item row="1" column="0"><widget class="QLabel" name="gainLabel"><property name="text"><string>Gain</string></property></widget></item>
+             <item row="1" column="1"><widget class="QDoubleSpinBox" name="gainSpin"><property name="suffix"><string> dB</string></property><property name="decimals"><number>1</number></property><property name="maximum"><double>120.000000000000000</double></property></widget></item>
+             <item row="2" column="0"><widget class="QLabel" name="antennaLabel"><property name="text"><string>Antenna port</string></property></widget></item>
+             <item row="2" column="1"><widget class="QLineEdit" name="antennaEdit"><property name="toolTip"><string>Empty = the daughterboard's default, e.g. RX2 or TX/RX on a WBX or SBX (RF 2 and RF 1 on an N200's front panel)</string></property></widget></item>
+             <item row="3" column="0"><widget class="QLabel" name="subdevLabel"><property name="text"><string>Subdevice</string></property></widget></item>
+             <item row="3" column="1"><widget class="QLineEdit" name="subdevEdit"><property name="toolTip"><string>Empty = the default, e.g. A:0</string></property></widget></item>
+             <item row="4" column="0"><widget class="QLabel" name="clockLabel"><property name="text"><string>Clock source</string></property></widget></item>
+             <item row="4" column="1">
+              <widget class="QComboBox" name="clockCombo">
+               <property name="editable"><bool>true</bool></property>
+               <item><property name="text"><string>internal</string></property></item>
+               <item><property name="text"><string>external</string></property></item>
+               <item><property name="text"><string>gpsdo</string></property></item>
+               <item><property name="text"><string>mimo</string></property></item>
+              </widget>
+             </item>
+             <item row="5" column="0"><widget class="QLabel" name="bandwidthLabel"><property name="text"><string>Analog bandwidth</string></property></widget></item>
+             <item row="5" column="1"><widget class="QDoubleSpinBox" name="bandwidthSpin"><property name="specialValueText"><string>daughterboard default</string></property><property name="suffix"><string> MHz</string></property><property name="decimals"><number>3</number></property><property name="maximum"><double>200.000000000000000</double></property></widget></item>
+             <item row="6" column="0"><widget class="QLabel" name="uhdPathLabel"><property name="text"><string>uhd.dll</string></property></widget></item>
+             <item row="6" column="1"><widget class="QLineEdit" name="uhdPathEdit"><property name="toolTip"><string>Empty = look in UHD_PKG_PATH, Program Files and PATH</string></property></widget></item>
+            </layout>
+           </widget>
+          </item>
+         </layout>
         </widget>
        </item>
-       <item row="1" column="0"><widget class="QLabel" name="deviceArgsLabel"><property name="text"><string>Device address</string></property></widget></item>
-       <item row="1" column="1"><widget class="QLineEdit" name="deviceArgsEdit"><property name="toolTip"><string>UHD device arguments, e.g. addr=192.168.10.2 (the N200 default). recv_buff_size=50000000 can be appended to help against overflows.</string></property></widget></item>
-       <item row="2" column="0"><widget class="QLabel" name="centerLabel"><property name="text"><string>Centre frequency</string></property></widget></item>
-       <item row="2" column="1"><widget class="QDoubleSpinBox" name="centerSpin"><property name="suffix"><string> MHz</string></property><property name="decimals"><number>6</number></property><property name="minimum"><double>1.000000000000000</double></property><property name="maximum"><double>6000.000000000000000</double></property></widget></item>
-       <item row="3" column="0"><widget class="QLabel" name="rateLabel"><property name="text"><string>Sample rate</string></property></widget></item>
-       <item row="3" column="1"><widget class="QDoubleSpinBox" name="rateSpin"><property name="toolTip"><string>Complex samples per second. GPS works from 2 MS/s, Galileo needs 4 MS/s. The N200 gives 100 MHz divided by an integer and reports the rate it actually set.</string></property><property name="suffix"><string> MS/s</string></property><property name="decimals"><number>3</number></property><property name="minimum"><double>0.500000000000000</double></property><property name="maximum"><double>50.000000000000000</double></property><property name="singleStep"><double>0.500000000000000</double></property></widget></item>
-       <item row="4" column="0"><widget class="QLabel" name="gainLabel"><property name="text"><string>Gain</string></property></widget></item>
-       <item row="4" column="1"><widget class="QDoubleSpinBox" name="gainSpin"><property name="suffix"><string> dB</string></property><property name="decimals"><number>1</number></property><property name="maximum"><double>120.000000000000000</double></property></widget></item>
-       <item row="5" column="0"><widget class="QLabel" name="antennaLabel"><property name="text"><string>Antenna port</string></property></widget></item>
-       <item row="5" column="1"><widget class="QLineEdit" name="antennaEdit"><property name="toolTip"><string>Empty = the daughterboard's default, e.g. RX2 or TX/RX on a WBX or SBX</string></property></widget></item>
-       <item row="6" column="0"><widget class="QLabel" name="subdevLabel"><property name="text"><string>Subdevice</string></property></widget></item>
-       <item row="6" column="1"><widget class="QLineEdit" name="subdevEdit"><property name="toolTip"><string>Empty = the default, e.g. A:0</string></property></widget></item>
-       <item row="7" column="0"><widget class="QLabel" name="clockLabel"><property name="text"><string>Clock source</string></property></widget></item>
-       <item row="7" column="1">
-        <widget class="QComboBox" name="clockCombo">
-         <property name="editable"><bool>true</bool></property>
-         <item><property name="text"><string>internal</string></property></item>
-         <item><property name="text"><string>external</string></property></item>
-         <item><property name="text"><string>gpsdo</string></property></item>
-         <item><property name="text"><string>mimo</string></property></item>
+       <item>
+        <widget class="QGroupBox" name="hackrfGroup">
+         <property name="title"><string>HackRF One</string></property>
+         <property name="checkable"><bool>true</bool></property>
+         <property name="checked"><bool>false</bool></property>
+         <layout class="QVBoxLayout" name="hackrfGroupLayout">
+          <item>
+           <widget class="QWidget" name="hackrfBox">
+            <layout class="QFormLayout" name="hackrfForm">
+             <property name="leftMargin"><number>0</number></property><property name="topMargin"><number>0</number></property><property name="rightMargin"><number>0</number></property><property name="bottomMargin"><number>0</number></property>
+             <item row="0" column="0"><widget class="QLabel" name="hackrfSerialLabel"><property name="text"><string>Serial number</string></property></widget></item>
+             <item row="0" column="1"><widget class="QLineEdit" name="hackrfSerialEdit"><property name="toolTip"><string>Or its last digits. Empty = the first HackRF found.</string></property></widget></item>
+             <item row="1" column="0"><widget class="QLabel" name="hackrfLnaLabel"><property name="text"><string>LNA gain</string></property></widget></item>
+             <item row="1" column="1"><widget class="QSpinBox" name="hackrfLnaSpin"><property name="suffix"><string> dB</string></property><property name="maximum"><number>40</number></property><property name="singleStep"><number>8</number></property></widget></item>
+             <item row="2" column="0"><widget class="QLabel" name="hackrfVgaLabel"><property name="text"><string>VGA gain</string></property></widget></item>
+             <item row="2" column="1"><widget class="QSpinBox" name="hackrfVgaSpin"><property name="suffix"><string> dB</string></property><property name="maximum"><number>62</number></property><property name="singleStep"><number>2</number></property></widget></item>
+             <item row="3" column="1"><widget class="QCheckBox" name="hackrfAmpCheck"><property name="toolTip"><string>Needed when the antenna's noise is not well above the HackRF's own: switching the antenna power on should raise the level by several dB.</string></property><property name="text"><string>RF amplifier (+14 dB)</string></property></widget></item>
+             <item row="4" column="1"><widget class="QCheckBox" name="hackrfPowerCheck"><property name="toolTip"><string>Never with a cable to another radio or a signal generator: the DC would go into it.</string></property><property name="text"><string>Antenna power (3.3 V, for an active antenna)</string></property></widget></item>
+             <item row="5" column="0"><widget class="QLabel" name="hackrfPpmLabel"><property name="text"><string>Crystal error</string></property></widget></item>
+             <item row="5" column="1"><widget class="QDoubleSpinBox" name="hackrfPpmSpin"><property name="toolTip"><string>Positive when the HackRF runs fast. The tuning and the sample rate are corrected by it.</string></property><property name="suffix"><string> ppm</string></property><property name="decimals"><number>2</number></property><property name="minimum"><double>-100.000000000000000</double></property><property name="maximum"><double>100.000000000000000</double></property><property name="singleStep"><double>0.100000000000000</double></property></widget></item>
+             <item row="6" column="0"><widget class="QLabel" name="hackrfPathLabel"><property name="text"><string>hackrf.dll</string></property></widget></item>
+             <item row="6" column="1"><widget class="QLineEdit" name="hackrfPathEdit"><property name="toolTip"><string>Empty = next to the program, then PATH. libusb-1.0.dll must sit beside it.</string></property></widget></item>
+            </layout>
+           </widget>
+          </item>
+         </layout>
         </widget>
        </item>
-       <item row="8" column="0"><widget class="QLabel" name="bandwidthLabel"><property name="text"><string>Analog bandwidth</string></property></widget></item>
-       <item row="8" column="1"><widget class="QDoubleSpinBox" name="bandwidthSpin"><property name="specialValueText"><string>daughterboard default</string></property><property name="suffix"><string> MHz</string></property><property name="decimals"><number>3</number></property><property name="maximum"><double>200.000000000000000</double></property></widget></item>
-       <item row="9" column="0"><widget class="QLabel" name="loOffsetLabel"><property name="text"><string>LO offset</string></property></widget></item>
-       <item row="9" column="1"><widget class="QDoubleSpinBox" name="loOffsetSpin"><property name="toolTip"><string>Tunes the LO this far from the centre and lets the digital down-converter make up the difference, which keeps the LO leakage out of the band.</string></property><property name="suffix"><string> MHz</string></property><property name="decimals"><number>3</number></property><property name="minimum"><double>-100.000000000000000</double></property><property name="maximum"><double>100.000000000000000</double></property></widget></item>
-       <item row="10" column="0"><widget class="QLabel" name="uhdPathLabel"><property name="text"><string>uhd.dll</string></property></widget></item>
-       <item row="10" column="1"><widget class="QLineEdit" name="uhdPathEdit"><property name="toolTip"><string>Empty = look in UHD_PKG_PATH, Program Files and PATH</string></property></widget></item>
-       <item row="11" column="0"><widget class="QLabel" name="ringLabel"><property name="text"><string>Sample buffer</string></property></widget></item>
-       <item row="11" column="1"><widget class="QSpinBox" name="ringSpin"><property name="suffix"><string> s</string></property><property name="minimum"><number>2</number></property><property name="maximum"><number>120</number></property></widget></item>
-       <item row="12" column="0"><widget class="QLabel" name="windowLabel"><property name="text"><string>Tracking history</string></property></widget></item>
-       <item row="12" column="1"><widget class="QSpinBox" name="windowSpin"><property name="suffix"><string> s</string></property><property name="minimum"><number>36</number></property><property name="maximum"><number>600</number></property></widget></item>
-       <item row="13" column="0"><widget class="QLabel" name="historyLabel"><property name="text"><string>Position history</string></property></widget></item>
-       <item row="13" column="1"><widget class="QSpinBox" name="historySpin"><property name="suffix"><string> s</string></property><property name="minimum"><number>10</number></property><property name="maximum"><number>86400</number></property></widget></item>
-       <item row="14" column="0"><widget class="QLabel" name="updateLabel"><property name="text"><string>Update every</string></property></widget></item>
-       <item row="14" column="1"><widget class="QSpinBox" name="updateSpin"><property name="suffix"><string> ms</string></property><property name="minimum"><number>100</number></property><property name="maximum"><number>10000</number></property><property name="singleStep"><number>100</number></property></widget></item>
-       <item row="15" column="0"><widget class="QLabel" name="acqIntervalLabel"><property name="text"><string>Search for satellites every</string></property></widget></item>
-       <item row="15" column="1"><widget class="QSpinBox" name="acqIntervalSpin"><property name="suffix"><string> s</string></property><property name="minimum"><number>1</number></property><property name="maximum"><number>600</number></property></widget></item>
-       <item row="16" column="0"><widget class="QLabel" name="replaySpeedLabel"><property name="text"><string>Replay speed</string></property></widget></item>
-       <item row="16" column="1"><widget class="QDoubleSpinBox" name="replaySpeedSpin"><property name="suffix"><string> x</string></property><property name="minimum"><double>0.100000000000000</double></property><property name="maximum"><double>100.000000000000000</double></property></widget></item>
-       <item row="17" column="1"><widget class="QCheckBox" name="recordCheck"><property name="text"><string>Record the samples to disk (20 MB/s at 5 MS/s)</string></property></widget></item>
-       <item row="18" column="0"><widget class="QLabel" name="recordDirLabel"><property name="text"><string>Recording folder</string></property></widget></item>
-       <item row="18" column="1"><widget class="QLineEdit" name="recordDirEdit"/></item>
-       <item row="30" column="0"><widget class="QLabel" name="tcpHostLabel"><property name="text"><string>GPSSim address</string></property></widget></item>
-       <item row="30" column="1"><widget class="QLineEdit" name="tcpHostEdit"/></item>
-       <item row="31" column="0"><widget class="QLabel" name="tcpPortLabel"><property name="text"><string>GPSSim port</string></property></widget></item>
-       <item row="31" column="1"><widget class="QSpinBox" name="tcpPortSpin"><property name="minimum"><number>1024</number></property><property name="maximum"><number>65535</number></property></widget></item>
-       <item row="19" column="0"><widget class="QLabel" name="smPathLabel"><property name="text"><string>SM200 sm_api.dll</string></property></widget></item>
-       <item row="19" column="1"><widget class="QLineEdit" name="smPathEdit"><property name="toolTip"><string>Path of sm_api.dll from the Signal Hound SDK. Empty = next to the program, then the system path.</string></property></widget></item>
-       <item row="20" column="0"><widget class="QLabel" name="smCenterLabel"><property name="text"><string>SM200 centre</string></property></widget></item>
-       <item row="20" column="1"><widget class="QDoubleSpinBox" name="smCenterSpin"><property name="toolTip"><string>41.5 MHz is usable at 50 MS/s. 1590 MHz covers L1/E1 and every GLONASS channel; 1585 MHz clips channel +6.</string></property><property name="suffix"><string> MHz</string></property><property name="decimals"><number>3</number></property><property name="minimum"><double>1500.000000000000000</double></property><property name="maximum"><double>1700.000000000000000</double></property></widget></item>
-       <item row="21" column="0"><widget class="QLabel" name="smRefLabel"><property name="text"><string>SM200 reference level</string></property></widget></item>
-       <item row="21" column="1"><widget class="QDoubleSpinBox" name="smRefSpin"><property name="suffix"><string> dBm</string></property><property name="minimum"><double>-130.000000000000000</double></property><property name="maximum"><double>20.000000000000000</double></property></widget></item>
-       <item row="22" column="0"><widget class="QLabel" name="hackrfSerialLabel"><property name="text"><string>HackRF serial</string></property></widget></item>
-       <item row="22" column="1"><widget class="QLineEdit" name="hackrfSerialEdit"><property name="toolTip"><string>Or its last digits. Empty = the first HackRF found. The HackRF uses the centre frequency, sample rate (2 to 20 MS/s) and LO offset above; with an LO offset the band sits at that IF.</string></property></widget></item>
-       <item row="23" column="0"><widget class="QLabel" name="hackrfLnaLabel"><property name="text"><string>HackRF LNA gain</string></property></widget></item>
-       <item row="23" column="1"><widget class="QSpinBox" name="hackrfLnaSpin"><property name="suffix"><string> dB</string></property><property name="maximum"><number>40</number></property><property name="singleStep"><number>8</number></property></widget></item>
-       <item row="24" column="0"><widget class="QLabel" name="hackrfVgaLabel"><property name="text"><string>HackRF VGA gain</string></property></widget></item>
-       <item row="24" column="1"><widget class="QSpinBox" name="hackrfVgaSpin"><property name="suffix"><string> dB</string></property><property name="maximum"><number>62</number></property><property name="singleStep"><number>2</number></property></widget></item>
-       <item row="25" column="1"><widget class="QCheckBox" name="hackrfAmpCheck"><property name="text"><string>HackRF RF amplifier (+14 dB, for a passive antenna)</string></property></widget></item>
-       <item row="26" column="1"><widget class="QCheckBox" name="hackrfPowerCheck"><property name="toolTip"><string>Never with a cable to another radio or a signal generator: the DC would go into it.</string></property><property name="text"><string>HackRF antenna power (3.3 V, for an active antenna)</string></property></widget></item>
-       <item row="27" column="0"><widget class="QLabel" name="hackrfPpmLabel"><property name="text"><string>HackRF crystal error</string></property></widget></item>
-       <item row="27" column="1"><widget class="QDoubleSpinBox" name="hackrfPpmSpin"><property name="toolTip"><string>Positive when the HackRF runs fast. The tuning and the sample rate are corrected by it.</string></property><property name="suffix"><string> ppm</string></property><property name="decimals"><number>2</number></property><property name="minimum"><double>-100.000000000000000</double></property><property name="maximum"><double>100.000000000000000</double></property><property name="singleStep"><double>0.100000000000000</double></property></widget></item>
-       <item row="28" column="0"><widget class="QLabel" name="hackrfPathLabel"><property name="text"><string>hackrf.dll</string></property></widget></item>
-       <item row="28" column="1"><widget class="QLineEdit" name="hackrfPathEdit"><property name="toolTip"><string>Empty = next to the program, then PATH. libusb-1.0.dll must sit beside it.</string></property></widget></item>
+       <item>
+        <widget class="QGroupBox" name="smGroup">
+         <property name="title"><string>Signal Hound SM200</string></property>
+         <property name="checkable"><bool>true</bool></property>
+         <property name="checked"><bool>false</bool></property>
+         <layout class="QVBoxLayout" name="smGroupLayout">
+          <item>
+           <widget class="QWidget" name="smBox">
+            <layout class="QFormLayout" name="smForm">
+             <property name="leftMargin"><number>0</number></property><property name="topMargin"><number>0</number></property><property name="rightMargin"><number>0</number></property><property name="bottomMargin"><number>0</number></property>
+             <item row="0" column="0"><widget class="QLabel" name="smPathLabel"><property name="text"><string>sm_api.dll</string></property></widget></item>
+             <item row="0" column="1"><widget class="QLineEdit" name="smPathEdit"><property name="toolTip"><string>Path of sm_api.dll from the Signal Hound SDK. Empty = next to the program, then the system path.</string></property></widget></item>
+             <item row="1" column="0"><widget class="QLabel" name="smCenterLabel"><property name="text"><string>Centre frequency</string></property></widget></item>
+             <item row="1" column="1"><widget class="QDoubleSpinBox" name="smCenterSpin"><property name="toolTip"><string>41.5 MHz is usable at 50 MS/s. 1590 MHz covers L1/E1 and every GLONASS channel; 1585 MHz clips channel +6.</string></property><property name="suffix"><string> MHz</string></property><property name="decimals"><number>3</number></property><property name="minimum"><double>1500.000000000000000</double></property><property name="maximum"><double>1700.000000000000000</double></property></widget></item>
+             <item row="2" column="0"><widget class="QLabel" name="smRefLabel"><property name="text"><string>Reference level</string></property></widget></item>
+             <item row="2" column="1"><widget class="QDoubleSpinBox" name="smRefSpin"><property name="suffix"><string> dBm</string></property><property name="minimum"><double>-130.000000000000000</double></property><property name="maximum"><double>20.000000000000000</double></property></widget></item>
+            </layout>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="tcpGroup">
+         <property name="title"><string>GPSSim stream (TCP)</string></property>
+         <property name="checkable"><bool>true</bool></property>
+         <property name="checked"><bool>false</bool></property>
+         <layout class="QVBoxLayout" name="tcpGroupLayout">
+          <item>
+           <widget class="QWidget" name="tcpBox">
+            <layout class="QFormLayout" name="tcpForm">
+             <property name="leftMargin"><number>0</number></property><property name="topMargin"><number>0</number></property><property name="rightMargin"><number>0</number></property><property name="bottomMargin"><number>0</number></property>
+             <item row="0" column="0"><widget class="QLabel" name="tcpHostLabel"><property name="text"><string>Address</string></property></widget></item>
+             <item row="0" column="1"><widget class="QLineEdit" name="tcpHostEdit"/></item>
+             <item row="1" column="0"><widget class="QLabel" name="tcpPortLabel"><property name="text"><string>Port</string></property></widget></item>
+             <item row="1" column="1"><widget class="QSpinBox" name="tcpPortSpin"><property name="minimum"><number>1024</number></property><property name="maximum"><number>65535</number></property></widget></item>
+            </layout>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="processingGroup">
+         <property name="title"><string>Processing</string></property>
+         <property name="checkable"><bool>true</bool></property>
+         <property name="checked"><bool>false</bool></property>
+         <layout class="QVBoxLayout" name="processingGroupLayout">
+          <item>
+           <widget class="QWidget" name="processingBox">
+            <layout class="QFormLayout" name="processingForm">
+             <property name="leftMargin"><number>0</number></property><property name="topMargin"><number>0</number></property><property name="rightMargin"><number>0</number></property><property name="bottomMargin"><number>0</number></property>
+             <item row="0" column="0"><widget class="QLabel" name="ringLabel"><property name="text"><string>Sample buffer</string></property></widget></item>
+             <item row="0" column="1"><widget class="QSpinBox" name="ringSpin"><property name="suffix"><string> s</string></property><property name="minimum"><number>2</number></property><property name="maximum"><number>120</number></property></widget></item>
+             <item row="1" column="0"><widget class="QLabel" name="windowLabel"><property name="text"><string>Tracking history</string></property></widget></item>
+             <item row="1" column="1"><widget class="QSpinBox" name="windowSpin"><property name="suffix"><string> s</string></property><property name="minimum"><number>36</number></property><property name="maximum"><number>600</number></property></widget></item>
+             <item row="2" column="0"><widget class="QLabel" name="historyLabel"><property name="text"><string>Position history</string></property></widget></item>
+             <item row="2" column="1"><widget class="QSpinBox" name="historySpin"><property name="suffix"><string> s</string></property><property name="minimum"><number>10</number></property><property name="maximum"><number>86400</number></property></widget></item>
+             <item row="3" column="0"><widget class="QLabel" name="updateLabel"><property name="text"><string>Update every</string></property></widget></item>
+             <item row="3" column="1"><widget class="QSpinBox" name="updateSpin"><property name="suffix"><string> ms</string></property><property name="minimum"><number>100</number></property><property name="maximum"><number>10000</number></property><property name="singleStep"><number>100</number></property></widget></item>
+             <item row="4" column="0"><widget class="QLabel" name="acqIntervalLabel"><property name="text"><string>Search for satellites every</string></property></widget></item>
+             <item row="4" column="1"><widget class="QSpinBox" name="acqIntervalSpin"><property name="suffix"><string> s</string></property><property name="minimum"><number>1</number></property><property name="maximum"><number>600</number></property></widget></item>
+             <item row="5" column="0"><widget class="QLabel" name="replaySpeedLabel"><property name="text"><string>Replay speed</string></property></widget></item>
+             <item row="5" column="1"><widget class="QDoubleSpinBox" name="replaySpeedSpin"><property name="suffix"><string> x</string></property><property name="minimum"><double>0.100000000000000</double></property><property name="maximum"><double>100.000000000000000</double></property></widget></item>
+            </layout>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <spacer name="liveSpacer"><property name="orientation"><enum>Qt::Vertical</enum></property></spacer>
+       </item>
       </layout>
      </widget>
     </widget>
