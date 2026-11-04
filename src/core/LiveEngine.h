@@ -50,8 +50,9 @@ struct LiveStatus
     qint64 overflows = 0, lostSamples = 0;
     double lagMs = 0;            // how far the slowest channel is behind the newest sample
     double bufferUsed = 0;       // the same as a fraction of the sample buffer (0..1)
-    double levelRms = 0;         // sample RMS in ADC counts
+    double levelRms = 0;         // sample RMS in ADC counts, without the DC offset
     double levelDbfs = 0;        // only for a radio
+    double lowDbfs = -65.0;      // below this the noise spans too few steps of the radio's converter
     double clipPercent = 0;
     int acqCycles = 0;
     double lastAcqSec = 0;

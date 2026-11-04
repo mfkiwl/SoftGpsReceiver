@@ -101,7 +101,7 @@ void LivePage::setStatus(const LiveStatus& st, const std::vector<LiveChannelStat
     if (st.levelDbfs != 0.0) {
         QString lvl = tr("%1 dBFS RMS, %2 % clipped").arg(st.levelDbfs, 0, 'f', 1).arg(st.clipPercent, 0, 'f', 2);
         if (st.levelDbfs > -12.0 || st.clipPercent > 0.5) lvl += tr(" - gain too high");
-        else if (st.levelDbfs < -65.0) lvl += tr(" - gain low");
+        else if (st.levelDbfs < st.lowDbfs) lvl += tr(" - gain low");
         ui->levelValue->setText(lvl);
     } else {
         ui->levelValue->setText(tr("%1 counts RMS").arg(st.levelRms, 0, 'f', 1));

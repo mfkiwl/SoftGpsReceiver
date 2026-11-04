@@ -163,6 +163,13 @@ void ReceiverSettings::save(QSettings& s) const
     s.setValue("gainDb", live.gainDb);
     s.setValue("bandwidth", live.bandwidth);
     s.setValue("loOffset", live.loOffset);
+    s.setValue("hackrfSerial", live.hackrfSerial);
+    s.setValue("hackrfLibrary", live.hackrfLibrary);
+    s.setValue("hackrfLnaGain", live.hackrfLnaGain);
+    s.setValue("hackrfVgaGain", live.hackrfVgaGain);
+    s.setValue("hackrfAmp", live.hackrfAmp);
+    s.setValue("hackrfAntennaPower", live.hackrfAntennaPower);
+    s.setValue("hackrfPpm", live.hackrfPpm);
     s.setValue("ringSeconds", live.ringSeconds);
     s.setValue("windowSeconds", live.windowSeconds);
     s.setValue("historySeconds", live.historySeconds);
@@ -226,6 +233,13 @@ void ReceiverSettings::load(QSettings& s)
     live.gainDb = s.value("gainDb", ld.gainDb).toDouble();
     live.bandwidth = s.value("bandwidth", ld.bandwidth).toDouble();
     live.loOffset = s.value("loOffset", ld.loOffset).toDouble();
+    live.hackrfSerial = s.value("hackrfSerial", ld.hackrfSerial).toString();
+    live.hackrfLibrary = s.value("hackrfLibrary", ld.hackrfLibrary).toString();
+    live.hackrfLnaGain = s.value("hackrfLnaGain", ld.hackrfLnaGain).toInt();
+    live.hackrfVgaGain = s.value("hackrfVgaGain", ld.hackrfVgaGain).toInt();
+    live.hackrfAmp = s.value("hackrfAmp", ld.hackrfAmp).toBool();
+    live.hackrfAntennaPower = s.value("hackrfAntennaPower", ld.hackrfAntennaPower).toBool();
+    live.hackrfPpm = s.value("hackrfPpm", ld.hackrfPpm).toDouble();
     live.ringSeconds = s.value("ringSeconds", ld.ringSeconds).toInt();
     live.windowSeconds = s.value("windowSeconds", ld.windowSeconds).toInt();
     live.historySeconds = s.value("historySeconds", ld.historySeconds).toInt();

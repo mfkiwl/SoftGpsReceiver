@@ -77,6 +77,18 @@ bool LiveEngine::start(const ReceiverSettings& settings, SignalSource* source, Q
         sm->setRing(ring_);
         log(info.details);
         input_ = std::move(sm);
+    } else if (s_.live.source == LiveSourceKind::HackRf) {
+        auto hackrf = std::make_unique<HackRfInput>(s_.live);
+        if (!hackrf->open(error)) return false;
+        const LiveInputInfo& info = hackrf->info();
+        s_.samplingFreq = info.sampleRate;
+        s_.ifFreq = kL1Freq - info.centerFreq;    // with an LO offset the band sits off centre
+        s_.format = SampleFormat::Int16IQ;
+        ring_ = std::make_shared<LiveRing>(qint64(info.sampleRate * std::max(2, s_.live.ringSeconds)));
+        source->attachRing(ring_);
+        hackrf->setRing(ring_);
+        log(info.details);
+        input_ = std::move(hackrf);
     } else {
         auto uhd = std::make_unique<UhdInput>(s_.live);
         if (!uhd->open(error)) return false;
@@ -462,14 +474,25 @@ void LiveEngine::measureLevel(qint64 head, LiveStatus& st)
     std::vector<float> a(static_cast<size_t>(n)), b(static_cast<size_t>(n));
     const int got = src_->read(head - n, n, a.data(), b.data());
     if (got <= 0) return;
+    // Without the DC offset, which says nothing about the signal: a HackRF's alone looks like a sound level
+    double meanA = 0, meanB = 0;
+    for (int i = 0; i < got; ++i) {
+        meanA += a[size_t(i)];
+        meanB += b[size_t(i)];
+    }
+    meanA /= got;
+    meanB /= got;
     double p = 0;
     int clip = 0;
     for (int i = 0; i < got; ++i) {
-        p += double(a[size_t(i)]) * a[size_t(i)] + double(b[size_t(i)]) * b[size_t(i)];
+        const double x = a[size_t(i)] - meanA, y = b[size_t(i)] - meanB;
+        p += x * x + y * y;
         if (std::fabs(a[size_t(i)]) >= 32000.0f || std::fabs(b[size_t(i)]) >= 32000.0f) ++clip;
     }
     st.levelRms = std::sqrt(p / got);
     st.levelDbfs = st.levelRms > 0 ? 20.0 * std::log10(st.levelRms / 32768.0) : -120.0;
+    // Satellites sit below the noise, so it has to span a few steps of the converter: about 4 per rail
+    st.lowDbfs = input_ ? 20.0 * std::log10(4.0 * std::sqrt(2.0) / double(1 << (input_->info().bits - 1))) : -65.0;
     st.clipPercent = 100.0 * clip / got;
 }
 

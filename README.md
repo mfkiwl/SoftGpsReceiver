@@ -94,6 +94,48 @@ are `addr=192.168.10.2`, 5 MS/s at 1575.42 MHz and 30 dB.
 The tracking pages show the last 60 s and the Position pages the last 10 minutes (both adjustable). Long sessions use
 constant memory.
 
+### HackRF One
+
+Choose *HackRF One* as the *Live source*. It uses the centre frequency and sample rate above (2 to 20 MS/s), and has
+gains of its own: LNA 0 to 40 dB in steps of 8, VGA 0 to 62 dB in steps of 2, and a 14 dB RF amplifier. The defaults
+are LNA 32 and VGA 40 with the amplifier off. Like UHD, `hackrf.dll` is loaded when live mode starts.
+
+```bash
+gnss_cli --hackrf --antenna-power --amp --lna 32 --vga 40 --rate 2.5e6 --ppm -10.6 --seconds 120
+```
+
+With an active patch antenna seeing part of the sky, those settings tracked 4 satellites at about 40 dB-Hz and gave a
+fix 28 s after starting.
+
+* **Antenna power** puts 3.3 V on the antenna port, for an active antenna. Leave it off with a cable to another radio,
+  a simulator or a signal generator: the DC would go into it.
+* **Crystal error.** A HackRF One without a TCXO is good to about 20 ppm, 30 kHz at L1: more than the default
+  +/-10 kHz search. Measure it once: widen the search (`--search 40000`, or the acquisition search band in *Settings*),
+  compare the Doppler found with the true one, and enter the difference as *HackRF crystal error*, positive when the
+  HackRF runs fast. The tuning and the sample rate are then corrected. The HackRF this was written with ran 10.6 ppm
+  slow against an N200, and drifted by a few tenths of a ppm as it warmed up.
+* **Level.** The samples have 8 bits, and the satellites sit below the noise, so the noise has to span a few steps of
+  the converter: the Live tab says *gain low* below about -27 dBFS. Its reading leaves out the HackRF's DC offset,
+  which is worth about -30 dBFS on its own. With LNA 32 and VGA 20 an antenna's noise is half a step and nothing is
+  found.
+* **Amplifier.** Turn it on when the antenna's noise is not well above the HackRF's own. Switching the antenna power
+  on and off shows it: the noise should rise by several dB with the power on. With the amplifier off it rose 2 dB for
+  the antenna used here and no satellites were found; with it on, 8 dB, and 4 satellites.
+
+With GPSSim on an N200 at 0 dB, through a cable into the HackRF at LNA 32 and VGA 30, all 9 satellites were tracked
+and the fix kept within 1.6 m (CEP50) of the simulated position.
+
+**Getting hackrf.dll.** The HackRF project ships no Windows build. Build `hackrf.dll` from
+<https://github.com/greatscottgadgets/hackrf> with the kit's MinGW; it needs `libusb.h` from libusb, of the version of
+the `libusb-1.0.dll` it will run with (UHD installs one, 1.0.29 with UHD 4.11):
+
+```bash
+gcc -O2 -shared -Ihackrf/host/libhackrf/src -Ilibusb-include hackrf/host/libhackrf/src/hackrf.c -o hackrf.dll -L"C:/Program Files/UHD/bin" -l:libusb-1.0.dll -static-libgcc -Wl,-Bstatic -lwinpthread -Wl,-Bdynamic
+```
+
+Put `hackrf.dll` and `libusb-1.0.dll` in `third_party/hackrf/windows_x64/`, and the build copies them next to the
+programs. The HackRF must use the WinUSB driver, which Windows 10 and later install for it.
+
 ### Trying it without a radio
 
 Set *Live source* to *Replay the open recording in real time* in *Settings > Live*: the open file then behaves like a
@@ -381,7 +423,8 @@ src/core/            GUI-independent receiver (Qt Core + Concurrent only)
   Pvt                pseudoranges, corrections, iterative least squares, DOP, Doppler velocity
   Receiver           pipeline orchestration (runs on a worker thread)
   LiveEngine         real-time receiver: channels start and stop, rolling decoding, incremental solution
-  LiveInput          sample sources for it: UhdInput (USRP through the UHD C API), ReplayInput (a file at its real rate)
+  LiveInput          sample sources for it: UhdInput (USRP through the UHD C API), HackRfInput (HackRF One through
+                     libhackrf), SmInput (SM200), TcpInput (GPSSim's stream), ReplayInput (a file at its real rate)
   LiveRing           sample ring buffer between the radio thread and everything that reads samples
   GalileoCodes       E1-B and E1-C primary codes (memory codes, from a table)
   GalileoNav         I/NAV: page sync, deinterleaver, Viterbi decoder, CRC-24Q, word fields, ephemeris

@@ -8,8 +8,10 @@
 //   gnss_cli <file.bin> --live [--speed X] [--seconds N]       plays the recording in real time (or X times that)
 //   gnss_cli --usrp [--args addr=192.168.10.2] [--rate 5e6] [--center 1575.42e6] [--gain 30] [--antenna RX2]
 //            [--subdev A:0] [--clock internal] [--lo-offset Hz] [--uhd path/uhd.dll] [--record dir] [--seconds N]
+//   gnss_cli --hackrf [--serial digits] [--rate 5e6] [--center 1575.42e6] [--lna 32] [--vga 20] [--amp]
+//            [--antenna-power] [--ppm X] [--lo-offset Hz] [--hackrf-dll path/hackrf.dll] [--record dir] [--seconds N]
 //
-// Further live options: --update-ms N, --window s, --acq-interval s
+// Further live options: --update-ms N, --window s, --acq-interval s, --search Hz (Doppler search, +/-)
 
 #include "core/Constants.h"
 #include "core/Geodesy.h"
@@ -105,14 +107,16 @@ int main(int argc, char** argv)
         out() << "usage: gnss_cli <file.bin> [--ms N] [--channels N] [--fs Hz] [--if Hz] [--gnss all|gps|gal] [--csv out.csv]\n"
                  "       gnss_cli <file.bin> --live [--speed X] [--seconds N]\n"
                  "       gnss_cli --tcp host:port [--seconds N]\n"
-                 "       gnss_cli --usrp [--args addr=192.168.10.2] [--rate 5e6] [--gain 30] [--seconds N] [--record dir]\n";
+                 "       gnss_cli --usrp [--args addr=192.168.10.2] [--rate 5e6] [--gain 30] [--seconds N] [--record dir]\n"
+                 "       gnss_cli --hackrf [--rate 5e6] [--lna 32] [--vga 20] [--amp] [--ppm X] [--seconds N] [--record dir]\n";
         return 1;
     }
     Receiver rx;
     QObject::connect(&rx, &Receiver::logMessage, [](const QString& t) { out() << t << "\n"; out().flush(); });
     const bool sm = args.contains("--sm");
     const bool tcp = args.contains("--tcp");
-    const bool usrp = args.contains("--usrp") || sm || tcp;
+    const bool hackrf = args.contains("--hackrf");
+    const bool usrp = args.contains("--usrp") || sm || tcp || hackrf;
     QString err;
     if (!usrp && !rx.openFile(args[1], &err)) {
         out() << err << "\n";
@@ -122,10 +126,13 @@ int main(int argc, char** argv)
     bool live = usrp;
     int seconds = 0;
     LiveSettings& ls = rx.settings.live;
-    ls.source = tcp ? LiveSourceKind::GpsSim : sm ? LiveSourceKind::SignalHound : usrp ? LiveSourceKind::Usrp : LiveSourceKind::Replay;
+    ls.source = tcp ? LiveSourceKind::GpsSim : sm ? LiveSourceKind::SignalHound : hackrf ? LiveSourceKind::HackRf
+                : usrp ? LiveSourceKind::Usrp : LiveSourceKind::Replay;
     for (int i = 1; i < args.size(); ++i) {
         const bool more = i + 1 < args.size();
         if (args[i] == "--live") live = true;
+        else if (args[i] == "--amp") ls.hackrfAmp = true;
+        else if (args[i] == "--antenna-power") ls.hackrfAntennaPower = true;
         else if (!more) break;
         else if (args[i] == "--ms") rx.settings.msToProcess = args[++i].toInt();
         else if (args[i] == "--channels") rx.settings.numChannels = args[++i].toInt();
@@ -159,6 +166,12 @@ int main(int argc, char** argv)
         else if (args[i] == "--sm-dll") ls.smLibrary = args[++i];
         else if (args[i] == "--sm-center") ls.smCenter = args[++i].toDouble();
         else if (args[i] == "--ref-level") ls.smRefLevel = args[++i].toDouble();
+        else if (args[i] == "--serial") ls.hackrfSerial = args[++i];
+        else if (args[i] == "--lna") ls.hackrfLnaGain = args[++i].toInt();
+        else if (args[i] == "--vga") ls.hackrfVgaGain = args[++i].toInt();
+        else if (args[i] == "--ppm") ls.hackrfPpm = args[++i].toDouble();
+        else if (args[i] == "--hackrf-dll") ls.hackrfLibrary = args[++i];
+        else if (args[i] == "--search") rx.settings.acqSearchBand = args[++i].toDouble();
         else if (args[i] == "--record") { ls.record = true; ls.recordDir = args[++i]; }
     }
     if (live) return runLive(rx, seconds, csv);

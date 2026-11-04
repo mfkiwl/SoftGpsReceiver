@@ -102,6 +102,13 @@ void SettingsDialog::load(const ReceiverSettings& s)
     ui->smPathEdit->setText(l.smLibrary);
     ui->smCenterSpin->setValue(l.smCenter / 1e6);
     ui->smRefSpin->setValue(l.smRefLevel);
+    ui->hackrfSerialEdit->setText(l.hackrfSerial);
+    ui->hackrfLnaSpin->setValue(l.hackrfLnaGain);
+    ui->hackrfVgaSpin->setValue(l.hackrfVgaGain);
+    ui->hackrfAmpCheck->setChecked(l.hackrfAmp);
+    ui->hackrfPowerCheck->setChecked(l.hackrfAntennaPower);
+    ui->hackrfPpmSpin->setValue(l.hackrfPpm);
+    ui->hackrfPathEdit->setText(l.hackrfLibrary);
     ui->ringSpin->setValue(l.ringSeconds);
     ui->windowSpin->setValue(l.windowSeconds);
     ui->historySpin->setValue(l.historySeconds);
@@ -176,6 +183,13 @@ ReceiverSettings SettingsDialog::settings() const
     l.smLibrary = ui->smPathEdit->text().trimmed();
     l.smCenter = ui->smCenterSpin->value() * 1e6;
     l.smRefLevel = ui->smRefSpin->value();
+    l.hackrfSerial = ui->hackrfSerialEdit->text().trimmed();
+    l.hackrfLnaGain = ui->hackrfLnaSpin->value();
+    l.hackrfVgaGain = ui->hackrfVgaSpin->value();
+    l.hackrfAmp = ui->hackrfAmpCheck->isChecked();
+    l.hackrfAntennaPower = ui->hackrfPowerCheck->isChecked();
+    l.hackrfPpm = ui->hackrfPpmSpin->value();
+    l.hackrfLibrary = ui->hackrfPathEdit->text().trimmed();
     l.ringSeconds = ui->ringSpin->value();
     l.windowSeconds = ui->windowSpin->value();
     l.historySeconds = ui->historySpin->value();

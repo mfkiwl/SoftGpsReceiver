@@ -18,6 +18,7 @@ struct LiveInputInfo
     double sampleRate = 0;       // Hz
     double centerFreq = 0;       // Hz, tuned frequency
     double gainDb = 0;
+    int bits = 14;               // resolution of the radio's converter, which decides how low a level is too low
     QString description;         // one line for the status display
     QString details;             // the device's own description, for the log
 };
@@ -131,6 +132,38 @@ private:
     std::shared_ptr<LiveRing> ring_;
     std::atomic<bool> stop_{false};
     QThread* thread_ = nullptr;
+};
+
+// Streams from a HackRF One over USB. Like UHD, libhackrf is loaded when streaming starts. Its 8-bit samples arrive
+// on a thread of the library's own. Its crystal is good to about 20 ppm, 30 kHz at L1: the ppm setting corrects it,
+// or else the acquisition has to search that wide.
+class HackRfInput : public LiveInput
+{
+public:
+    explicit HackRfInput(const LiveSettings& s);
+    ~HackRfInput() override;
+
+    bool start(QString* error) override;
+    void stop() override;
+
+    bool open(QString* error);
+    void setRing(std::shared_ptr<LiveRing> ring) { ring_ = std::move(ring); }
+
+private:
+    struct Api;
+    static int onTransfer(void* transfer);
+    void watch();
+    QString failure(const QString& what, int code) const;
+
+    LiveSettings cfg_;
+    std::unique_ptr<Api> api_;
+    void* device_ = nullptr;
+    bool initialised_ = false, streaming_ = false;
+    std::shared_ptr<LiveRing> ring_;
+    std::vector<int16_t> iq_;
+    std::atomic<qint64> received_{0};
+    std::atomic<bool> stop_{false};
+    QThread* watchdog_ = nullptr;
 };
 
 // Reads the stream of the GPSSim simulator over TCP. TCP loses nothing, and the simulator waits for a slow reader.

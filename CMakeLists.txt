@@ -46,7 +46,7 @@ add_library(gnsscore STATIC
     src/core/Receiver.h            src/core/Receiver.cpp
     src/core/LiveRing.h            src/core/LiveRing.cpp
     src/core/LiveInput.h           src/core/ReplayInput.cpp       src/core/UhdInput.cpp
-    src/core/SmInput.cpp           src/core/TcpInput.cpp
+    src/core/SmInput.cpp           src/core/TcpInput.cpp          src/core/HackRfInput.cpp
     src/core/BandSplitter.h        src/core/BandSplitter.cpp
     src/core/LiveEngine.h          src/core/LiveEngine.cpp
 )
@@ -136,6 +136,20 @@ endif()
 # ---------------------------------------------------------------------------
 qt_add_executable(gnss_cli src/cli/main_cli.cpp)
 target_link_libraries(gnss_cli PRIVATE gnsscore)
+
+# The HackRF driver and its libusb, found next to the executables. They are built from the HackRF sources (see the
+# README), so they are optional here. They are loaded at run time, so nothing links to them.
+set(GNSS_HACKRF_DIR ${CMAKE_SOURCE_DIR}/third_party/hackrf/windows_x64)
+if(WIN32 AND EXISTS ${GNSS_HACKRF_DIR}/hackrf.dll)
+    add_custom_target(hackrf_dll
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${GNSS_HACKRF_DIR}/hackrf.dll ${GNSS_HACKRF_DIR}/libusb-1.0.dll
+                $<TARGET_FILE_DIR:gnss_cli>
+        VERBATIM)
+    add_dependencies(gnss_cli hackrf_dll)
+    if(TARGET SoftGpsReceiver)
+        add_dependencies(SoftGpsReceiver hackrf_dll)
+    endif()
+endif()
 
 # ---------------------------------------------------------------------------
 # Decoder test against the worked example in the Galileo ICD

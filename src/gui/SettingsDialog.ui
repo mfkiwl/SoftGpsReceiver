@@ -160,6 +160,7 @@
          <item><property name="text"><string>Replay the open recording in real time</string></property></item>
          <item><property name="text"><string>Signal Hound SM200 (through sm_api.dll)</string></property></item>
          <item><property name="text"><string>GPSSim simulator (over TCP)</string></property></item>
+         <item><property name="text"><string>HackRF One (through hackrf.dll)</string></property></item>
         </widget>
        </item>
        <item row="1" column="0"><widget class="QLabel" name="deviceArgsLabel"><property name="text"><string>Device address</string></property></widget></item>
@@ -215,6 +216,18 @@
        <item row="20" column="1"><widget class="QDoubleSpinBox" name="smCenterSpin"><property name="toolTip"><string>41.5 MHz is usable at 50 MS/s. 1590 MHz covers L1/E1 and every GLONASS channel; 1585 MHz clips channel +6.</string></property><property name="suffix"><string> MHz</string></property><property name="decimals"><number>3</number></property><property name="minimum"><double>1500.000000000000000</double></property><property name="maximum"><double>1700.000000000000000</double></property></widget></item>
        <item row="21" column="0"><widget class="QLabel" name="smRefLabel"><property name="text"><string>SM200 reference level</string></property></widget></item>
        <item row="21" column="1"><widget class="QDoubleSpinBox" name="smRefSpin"><property name="suffix"><string> dBm</string></property><property name="minimum"><double>-130.000000000000000</double></property><property name="maximum"><double>20.000000000000000</double></property></widget></item>
+       <item row="22" column="0"><widget class="QLabel" name="hackrfSerialLabel"><property name="text"><string>HackRF serial</string></property></widget></item>
+       <item row="22" column="1"><widget class="QLineEdit" name="hackrfSerialEdit"><property name="toolTip"><string>Or its last digits. Empty = the first HackRF found. The HackRF uses the centre frequency, sample rate (2 to 20 MS/s) and LO offset above; with an LO offset the band sits at that IF.</string></property></widget></item>
+       <item row="23" column="0"><widget class="QLabel" name="hackrfLnaLabel"><property name="text"><string>HackRF LNA gain</string></property></widget></item>
+       <item row="23" column="1"><widget class="QSpinBox" name="hackrfLnaSpin"><property name="suffix"><string> dB</string></property><property name="maximum"><number>40</number></property><property name="singleStep"><number>8</number></property></widget></item>
+       <item row="24" column="0"><widget class="QLabel" name="hackrfVgaLabel"><property name="text"><string>HackRF VGA gain</string></property></widget></item>
+       <item row="24" column="1"><widget class="QSpinBox" name="hackrfVgaSpin"><property name="suffix"><string> dB</string></property><property name="maximum"><number>62</number></property><property name="singleStep"><number>2</number></property></widget></item>
+       <item row="25" column="1"><widget class="QCheckBox" name="hackrfAmpCheck"><property name="text"><string>HackRF RF amplifier (+14 dB, for a passive antenna)</string></property></widget></item>
+       <item row="26" column="1"><widget class="QCheckBox" name="hackrfPowerCheck"><property name="toolTip"><string>Never with a cable to another radio or a signal generator: the DC would go into it.</string></property><property name="text"><string>HackRF antenna power (3.3 V, for an active antenna)</string></property></widget></item>
+       <item row="27" column="0"><widget class="QLabel" name="hackrfPpmLabel"><property name="text"><string>HackRF crystal error</string></property></widget></item>
+       <item row="27" column="1"><widget class="QDoubleSpinBox" name="hackrfPpmSpin"><property name="toolTip"><string>Positive when the HackRF runs fast. The tuning and the sample rate are corrected by it.</string></property><property name="suffix"><string> ppm</string></property><property name="decimals"><number>2</number></property><property name="minimum"><double>-100.000000000000000</double></property><property name="maximum"><double>100.000000000000000</double></property><property name="singleStep"><double>0.100000000000000</double></property></widget></item>
+       <item row="28" column="0"><widget class="QLabel" name="hackrfPathLabel"><property name="text"><string>hackrf.dll</string></property></widget></item>
+       <item row="28" column="1"><widget class="QLineEdit" name="hackrfPathEdit"><property name="toolTip"><string>Empty = next to the program, then PATH. libusb-1.0.dll must sit beside it.</string></property></widget></item>
       </layout>
      </widget>
     </widget>

@@ -24,8 +24,9 @@ enum class Constellations { GpsGalileo = 0, GpsOnly, GalileoOnly, GlonassOnly };
 // "PRN 5" for GPS, "E30" for Galileo (see the satellite ids in Constants.h).
 QString satName(int id);
 
-// Where live samples come from: a USRP through UHD, or the open recording played back at its real rate.
-enum class LiveSourceKind { Usrp = 0, Replay, SignalHound, GpsSim };
+// Where live samples come from: a USRP through UHD, the open recording played back at its real rate, an SM200,
+// GPSSim's stream, or a HackRF One.
+enum class LiveSourceKind { Usrp = 0, Replay, SignalHound, GpsSim, HackRf };
 
 struct LiveSettings
 {
@@ -47,6 +48,16 @@ struct LiveSettings
     double gainDb = 30.0;
     double bandwidth = 0.0;             // Hz; 0 = leave the daughterboard filter alone
     double loOffset = 0.0;              // Hz, tunes the LO away from the band centre to keep its DC spike out
+
+    // ---------------- HackRF One. It shares the centre frequency, sample rate and LO offset above; with no
+    // down-converter of its own, an LO offset moves the band to that IF.
+    QString hackrfSerial;               // or its last digits; empty = the first one found
+    QString hackrfLibrary;              // path of hackrf.dll; empty = next to the program, then the system path
+    int hackrfLnaGain = 32;             // dB, 0 to 40 in steps of 8
+    int hackrfVgaGain = 40;             // dB, 0 to 62 in steps of 2. Less leaves an antenna's noise under one step
+    bool hackrfAmp = false;             // the 14 dB RF amplifier, for a passive antenna
+    bool hackrfAntennaPower = false;    // 3.3 V on the antenna port, for an active antenna. Never into another radio
+    double hackrfPpm = 0.0;             // error of the HackRF's crystal, positive when it runs fast
 
     // ---------------- GPSSim simulator, over TCP
     QString tcpHost = QStringLiteral("127.0.0.1");
